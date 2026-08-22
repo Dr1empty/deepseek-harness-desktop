@@ -5,13 +5,11 @@ const path = require('node:path')
 const fs = require('node:fs')
 const os = require('node:os')
 const { Backend, PREFERRED_PORT } = require('./backend')
-const { DeepSeekPaymentService } = require('./payment')
-const { DshUpdater } = require('./updater')
-const { DEEPSEEK_PRICING_URL, DEEPSEEK_TOP_UP_URL, UsageService } = require('./usage')
 
 // 打包版始终写入本地日志。由快捷方式或父进程启动时，继承的 stdout/stderr
 // 可能在应用仍运行时被关闭；吞掉 EPIPE，避免一次普通日志导致主进程崩溃。
 const LOG_FILE = path.join(require('node:os').tmpdir(), 'dsh-desktop.log')
+const processStartedAt = performance.now()
 function guardOutputStream(stream) {
   if (!stream || typeof stream.on !== 'function') return
   stream.on('error', error => {
@@ -25,7 +23,8 @@ guardOutputStream(process.stdout)
 guardOutputStream(process.stderr)
 
 function log(...args) {
-  const line = '[dsh-desktop] ' + args.map(String).join(' ') + '\n'
+  const elapsed = (performance.now() - processStartedAt).toFixed(1).padStart(8)
+  const line = `[dsh-desktop ${new Date().toISOString()} +${elapsed}ms] ` + args.map(String).join(' ') + '\n'
   try { fs.appendFileSync(LOG_FILE, line) } catch (_) {}
   if (!app.isPackaged) console.log('[dsh-desktop]', ...args)
 }
@@ -35,7 +34,10 @@ let backend = null
 let updater = null
 let usageService = null
 let paymentService = null
+let runtime = null
+let backendReadyPromise = null
 let quitting = false
+const smokeTest = process.env.DSH_DESKTOP_SMOKE_TEST === '1'
 
 function loadDistributionConfig() {
   if (!app.isPackaged) return {}
@@ -49,7 +51,9 @@ function loadDistributionConfig() {
 }
 
 const distribution = loadDistributionConfig()
-if (typeof distribution.userDataFolder === 'string' && distribution.userDataFolder.trim() !== '') {
+if (smokeTest) {
+  app.setPath('userData', path.join(os.tmpdir(), `dsh-desktop-smoke-${process.pid}`))
+} else if (typeof distribution.userDataFolder === 'string' && distribution.userDataFolder.trim() !== '') {
   const appDataPath = app.getPath('appData')
   const userDataPath = path.join(appDataPath, distribution.userDataFolder.trim())
   if (!fs.existsSync(userDataPath) && Array.isArray(distribution.legacyUserDataFolders)) {
@@ -88,24 +92,10 @@ if (!hasSingleInstanceLock) {
 
 function ensureIsolatedDshHome(dshHome) {
   fs.mkdirSync(dshHome, { recursive: true })
-  const markerPath = path.join(dshHome, '.desktop-distribution-initialized')
-  if (!fs.existsSync(markerPath) && app.isPackaged) {
-    const templatePath = path.join(process.resourcesPath, 'desktop-profile')
-    if (fs.existsSync(templatePath)) {
-      // 首次启动只补入发行模板中缺少的文件，不覆盖用户已经写入的内容。
-      // 完成后写标记；用户日后主动卸载插件时不会在重启后被自动装回。
-      fs.cpSync(templatePath, dshHome, {
-        recursive: true,
-        force: false,
-        errorOnExist: false,
-      })
-    }
-    fs.writeFileSync(markerPath, 'desktop-profile-v1\n', 'utf8')
-  }
   const settingsPath = path.join(dshHome, 'settings.yaml')
   if (!fs.existsSync(settingsPath)) {
     // 只写非敏感的模型默认值。DeepSeek 凭据仍由用户在设置页录入；
-    // 不复制普通安装中的智谱、Vision Router 或任何个人配置。
+    // 不复制普通安装中的第三方供应商、插件或任何个人配置。
     fs.writeFileSync(settingsPath, [
       'agent-default-model:',
       '  provider: deepseek-official',
@@ -113,6 +103,53 @@ function ensureIsolatedDshHome(dshHome) {
       '  reasoningEffort: high',
       '',
     ].join('\n'), 'utf8')
+  }
+}
+
+function resolveDesktopRuntime() {
+  const userDataPath = app.getPath('userData')
+  const resolved = Backend.resolveRuntime(app.isPackaged, userDataPath)
+  resolved.maintenanceStatePath = path.join(userDataPath, 'backend-maintenance.json')
+  if (distribution.isolatedDshHome === true) {
+    resolved.dshHome = path.join(userDataPath, 'dsh-home')
+    ensureIsolatedDshHome(resolved.dshHome)
+  }
+  return resolved
+}
+
+function launchBackendEarly(resolvedRuntime) {
+  backend = new Backend(resolvedRuntime)
+  backend.onUnexpectedExit = (code, logs) => {
+    if (!quitting) {
+      dialog.showErrorBox('DeepSeek Harness 后端异常退出', `退出码 ${code}\n\n${logs}`)
+      app.quit()
+    }
+  }
+
+  log('提前启动 backend 子进程（首选固定端口', PREFERRED_PORT, '）...')
+  backend.start()
+  return backend.waitReady().catch(async err => {
+    if (!backend.canFallback()) throw err
+    const reason = err && err.message ? err.message : String(err)
+    log('首选端口不可用，回退到系统分配端口：', reason)
+    backend.start(0)
+    return backend.waitReady()
+  })
+}
+
+// Electron/Chromium 的初始化与 Harness 的插件加载彼此独立。尽早启动后端，
+// 让两者并行进行，而不是等窗口创建后才开始约 5 秒的后端冷启动。
+if (hasSingleInstanceLock) {
+  try {
+    runtime = resolveDesktopRuntime()
+    log('node:', runtime.nodePath, '| harness:', runtime.harnessRoot, '| version:', runtime.version, '| source:', runtime.source)
+    backendReadyPromise = launchBackendEarly(runtime)
+    // boot() 会正式处理失败；这里立即附加 handler，避免 Electron ready 前
+    // 子进程快速失败形成 unhandled rejection。
+    backendReadyPromise.catch(() => {})
+  } catch (error) {
+    backendReadyPromise = Promise.reject(error)
+    backendReadyPromise.catch(() => {})
   }
 }
 
@@ -136,8 +173,12 @@ function createWindow() {
   })
 
   win.once('ready-to-show', () => {
-    win.show()
-    log('窗口已显示')
+    if (smokeTest) {
+      log('冒烟测试渲染器已就绪')
+    } else {
+      win.show()
+      log('窗口已显示')
+    }
   })
   win.on('closed', () => {
     win = null
@@ -173,7 +214,15 @@ function createWindow() {
 
 async function boot() {
   log('启动，isPackaged =', app.isPackaged)
+  const smokeTimeout = smokeTest ? setTimeout(() => {
+    log('打包启动冒烟测试超时')
+    if (backend) backend.stop()
+    app.exit(1)
+  }, 120_000) : null
   createWindow()
+  const { DeepSeekPaymentService } = require('./payment')
+  const { DshUpdater } = require('./updater')
+  const { UsageService } = require('./usage')
   paymentService = new DeepSeekPaymentService({
     BrowserWindow,
     session,
@@ -181,13 +230,7 @@ async function boot() {
     log,
     parentWindow: () => win,
   })
-  paymentService.initialize()
   const userDataPath = app.getPath('userData')
-  const runtime = Backend.resolveRuntime(app.isPackaged, userDataPath)
-  if (distribution.isolatedDshHome === true) {
-    runtime.dshHome = path.join(userDataPath, 'dsh-home')
-    ensureIsolatedDshHome(runtime.dshHome)
-  }
   const dshHome = runtime.dshHome || process.env.DSH_HOME || path.join(os.homedir(), '.dsh')
   usageService = new UsageService({ dshHome })
   const bundledNodeRoot = app.isPackaged
@@ -203,49 +246,31 @@ async function boot() {
     npmCliPath,
     nodeArchivePath: app.isPackaged ? path.join(process.resourcesPath, 'update-tools', 'node.zip') : null,
   })
-  log('node:', runtime.nodePath, '| harness:', runtime.harnessRoot, '| version:', runtime.version, '| source:', runtime.source)
-
-  backend = new Backend(runtime)
-  backend.onUnexpectedExit = (code, logs) => {
-    if (!quitting) {
-      dialog.showErrorBox(
-        'DeepSeek Harness 后端异常退出',
-        `退出码 ${code}\n\n${logs}`
-      )
-      app.quit()
-    }
-  }
-
   try {
-    log('启动 backend 子进程（首选固定端口', PREFERRED_PORT, '）...')
-    backend.start()
-    log('等待就绪信号...')
-    let port
-    try {
-      port = await backend.waitReady()
-    } catch (err) {
-      // 首选端口被占用（例如另一个实例还开着）时子进程会在就绪前退出：
-      // 静默回退到 OS 分配端口，仅本次会话端口不同（localStorage 只在
-      // 这次会话里不跨重启）。
-      if (backend.canFallback()) {
-        const reason = err && err.message ? err.message : String(err)
-        log('首选端口不可用，回退到系统分配端口：', reason)
-        backend.start(0)
-        port = await backend.waitReady()
-      } else {
-        throw err
-      }
-    }
+    log('窗口已创建，等待提前启动的 backend 就绪...')
+    const port = await backendReadyPromise
     log('backend 就绪，端口 =', port)
     const url = `http://127.0.0.1:${port}`
-    await win.loadURL(url)
     log('开始加载', url)
+    await win.loadURL(url)
+    log('页面加载完成', url)
+    if (smokeTest) {
+      clearTimeout(smokeTimeout)
+      log('打包启动冒烟测试通过')
+      backend.stop()
+      app.exit(0)
+    }
   } catch (err) {
     const msg = err && err.message ? err.message : String(err)
     log('启动失败:', msg)
     backend.stop()
-    dialog.showErrorBox('DeepSeek Harness 启动失败', msg)
-    app.quit()
+    if (smokeTest) {
+      clearTimeout(smokeTimeout)
+      app.exit(1)
+    } else {
+      dialog.showErrorBox('DeepSeek Harness 启动失败', msg)
+      app.quit()
+    }
   }
 }
 
@@ -303,6 +328,7 @@ ipcMain.handle('dsh-usage:balance', async () => {
 })
 
 ipcMain.handle('dsh-usage:open-official', async (_event, target) => {
+  const { DEEPSEEK_PRICING_URL, DEEPSEEK_TOP_UP_URL } = require('./usage')
   const urls = { topUp: DEEPSEEK_TOP_UP_URL, pricing: DEEPSEEK_PRICING_URL }
   const url = urls[target]
   if (!url) return { ok: false, error: '不支持的官方页面' }
