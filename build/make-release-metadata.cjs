@@ -8,7 +8,7 @@ const ROOT = path.resolve(__dirname, '..')
 const packageJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'))
 const outputDir = path.join(ROOT, 'dist-desktop-installer')
 const setupName = `DeepSeek-Harness-Desktop-Setup-${packageJson.version}.exe`
-const names = [setupName, `${setupName}.blockmap`]
+const names = [setupName, `${setupName}.blockmap`, 'latest.yml']
 
 function digest(file) {
   const hash = crypto.createHash('sha256')

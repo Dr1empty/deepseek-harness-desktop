@@ -19,7 +19,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
-      - run: npm run dist:desktop-installer
+      - run: npm run release:desktop
       - name: Verify NSIS Setup
         shell: pwsh
         run: |
@@ -33,4 +33,7 @@ jobs:
           path: |
             dist-desktop-installer/*.exe
             dist-desktop-installer/*.blockmap
+            dist-desktop-installer/latest.yml
+            dist-desktop-installer/SHA256SUMS.txt
+            dist-desktop-installer/release-manifest.json
           if-no-files-found: error

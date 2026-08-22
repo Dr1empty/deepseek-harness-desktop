@@ -1,175 +1,174 @@
 # DeepSeek Harness Desktop
 
-中文 | [English](README.en.md)
+[中文](README.zh-CN.md) | English
 
-[![Desktop test](https://github.com/Dr1empty/deepseek-harness-desktop/actions/workflows/desktop-test.yml/badge.svg)](https://github.com/Dr1empty/deepseek-harness-desktop/actions/workflows/desktop-test.yml)
+[![Desktop test](https://github.com/Dr1empty/deepseek-harness-desktop/actions/workflows/test.yml/badge.svg)](https://github.com/Dr1empty/deepseek-harness-desktop/actions/workflows/test.yml)
 [![Release](https://img.shields.io/github/v/release/Dr1empty/deepseek-harness-desktop?include_prereleases&label=Desktop)](https://github.com/Dr1empty/deepseek-harness-desktop/releases)
-[![Platform](https://img.shields.io/badge/platform-Windows%20x64-0078d4)](#系统要求)
+[![Platform](https://img.shields.io/badge/platform-Windows%20x64-0078d4)](#system-requirements)
 
-DeepSeek Harness Desktop 是集成在 [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) Fork 中的非官方 Windows 桌面发行版。它保留上游 Harness 的 Web UI、Agent、会话和插件体系，在此基础上补齐一键安装、本地服务生命周期、内核更新、用量与余额、二维码充值、单实例窗口和可复现发布等桌面能力。
+DeepSeek Harness Desktop is an unofficial Windows distribution integrated into a fork of [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness). It preserves the upstream Harness Web UI, agents, sessions, tools, and plugin architecture while adding one-click installation, local-service lifecycle management, Desktop and kernel updates, usage and balance reporting, native QR-code top-up, a single-instance desktop window, startup optimization, and reproducible releases.
 
-本项目不是 DeepSeek 官方产品，也不代表 DeepSeek 的维护或背书。
+This project is not an official DeepSeek product and is not maintained or endorsed by DeepSeek.
 
-## 下载
+## Download
 
-| 平台 | 安装包 | 说明 |
+| Platform | Download | Notes |
 | --- | --- | --- |
-| Windows 10/11 x64 | [DeepSeek Harness Desktop 1.1.4](https://github.com/Dr1empty/deepseek-harness-desktop/releases/tag/v1.1.4-desktop) | NSIS Setup，内含 Node.js 和 Harness，不要求预装开发环境 |
+| Windows 10/11 x64 | [DeepSeek Harness Desktop 1.1.5](https://github.com/Dr1empty/deepseek-harness-desktop/releases) | NSIS Setup with Node.js and Harness included; no development environment required |
 
-安装包尚未进行商业代码签名，Windows 可能显示“未知发布者”。请从 Release 同时下载 `SHA256SUMS.txt`，或核对 1.1.4 Setup 的 SHA-256：
+The installer is not commercially code-signed, so Windows may display an “Unknown publisher” warning. Download `SHA256SUMS.txt` from the same Release or verify the 1.1.5 Setup hash:
 
 ```text
-E45CD34A4FF3B1A7D02844DDC797565013ACC3DB1E0E6B1451E52FBE5FACF670
+85EB523F520D772A91823AA421A1DC3318C1C4873A6F5C179C33D4A614E1DF81
 ```
 
-## 为什么做这个 Desktop
+## Why this Desktop exists
 
-上游 Harness 提供核心 Agent 平台和 Web 交互界面，但从源码或 CLI 运行时，Windows 用户仍需自行准备 Node.js、管理进程、记住端口、处理更新，并在浏览器与终端之间切换。
+Upstream Harness provides the core agent platform and Web UI. Running it from source or the CLI on Windows still requires users to prepare Node.js, manage a background process and local port, handle updates, and move between a terminal and a browser.
 
-这个 Desktop 版本解决的是“如何把上游稳定地作为 Windows 应用运行”：
+This project focuses on running upstream Harness reliably as a Windows application:
 
-- 下载一个 Setup 即可安装，不要求用户配置 Node.js、npm 或 pnpm。
-- 点击快捷方式自动启动 Harness，本地服务就绪后直接进入上游 Web UI。
-- 关闭应用时回收后端进程；后端异常退出时展示最近日志，而不是留下黑色终端窗口。
-- 把 Desktop 自有功能放进 Harness 设置界面，不额外制造一套与上游割裂的首页。
-- 将内核更新、用量、余额和充值集中在同一个桌面窗口中。
+- Install from one Setup without configuring Node.js, npm, or pnpm.
+- Start Harness from a shortcut and open the upstream Web UI as soon as the local service is ready.
+- Reclaim the backend process when the app exits and show recent logs when startup fails.
+- Add Desktop-specific controls to the existing Harness settings instead of introducing a separate landing page.
+- Keep kernel updates, usage, balance, and top-up inside one desktop window.
 
-## 相比上游增加了什么
+## What this Desktop adds beyond upstream
 
-| 能力 | 上游 Harness | 本 Desktop 的新增实现 |
+| Area | Upstream Harness | Additional Desktop implementation |
 | --- | --- | --- |
-| Windows 分发 | 以 CLI/npm 包和 Web 应用为主 | NSIS Setup、桌面快捷方式、开始菜单入口和便携 Node.js 24 |
-| 本地服务 | 用户通过 CLI 启动和停止 | Electron 主进程托管子进程、就绪检测、端口回退、退出清理和故障提示 |
-| 窗口生命周期 | 浏览器标签页 | 单实例桌面窗口；重复点击只聚焦已有窗口 |
-| 启动体验 | 取决于 CLI 与浏览器 | 本地启动页、后端与 Chromium 并行初始化、启动阶段计时 |
-| 内核更新 | 通过包管理器手动处理 | 设置内检查 npm 新版、下载验证、失败保留旧版、成功后重启切换 |
-| 用量与余额 | 不属于核心 Web UI 的 Desktop 功能 | 汇总本机会话 token，查询 DeepSeek 官方余额并提示余额不足 |
-| 充值 | 跳转开放平台网页 | 设置内原生金额/支付方式界面，后台生成支付宝或微信官方付款二维码 |
-| 发行验证 | 上游测试面向 Harness 本体 | Desktop 单元测试、真实 NSIS 构建、打包态冒烟测试、SHA-256 与 manifest |
+| Windows distribution | Primarily a CLI/npm package and Web application | NSIS Setup, desktop and Start Menu shortcuts, and bundled portable Node.js 24 |
+| Local service | Started and stopped by the user through the CLI | Electron-managed child process, readiness detection, port fallback, shutdown cleanup, and failure reporting |
+| Window lifecycle | Runs in a browser tab | Single-instance desktop window; repeated shortcut launches focus the existing window |
+| Startup experience | Depends on CLI and browser startup | Local loading surface, parallel backend/Chromium initialization, and stage timings |
+| Software updates | Package-manager workflow | Separate in-app updates for the Desktop shell and Harness npm kernel, preserving the working version on failure |
+| Usage and balance | Not a Desktop function in the core Web UI | Local session-token aggregation, official DeepSeek balance query, and low-balance warning |
+| Top-up | Opens the platform website | Native amount/payment-method UI with official Alipay or WeChat payment QR generation |
+| Release verification | Upstream tests target Harness itself | Desktop unit tests, real NSIS build, packaged smoke test, SHA-256 checksums, and release manifest |
 
-这里所说的“新增”只指 Desktop 外壳和集成功能。模型调用、Agent 执行、会话格式、工具系统、官方 Web UI 与官方核心插件仍来自上游 Harness。
+“Additional” refers only to the Desktop shell and integration layer. Model calls, agent execution, session formats, tools, the official Web UI, and official core bundles still come from upstream Harness.
 
-## 主要功能
+## Features
 
-### 一键安装与零环境启动
+### One-click installation and zero-environment startup
 
-- 随安装包提供 Node.js `24.18.0` 和锁定的 `@deepseek-ai/dsh@0.1.1-rc.2`。
-- 后端使用隐藏子进程运行，不弹出额外 CMD/PowerShell 窗口。
-- 固定首选端口 `64788`，使按 origin 保存的 Web 数据能够跨重启复用。
-- 如果首选端口被占用，自动回退到操作系统分配的本地端口。
-- 服务只加载到 `127.0.0.1`，不会主动暴露为局域网服务。
+- Bundles Node.js `24.18.0` and pins `@deepseek-ai/dsh@0.1.1-rc.2`.
+- Runs the backend as a hidden child process without an extra CMD or PowerShell window.
+- Prefers fixed port `64788`, allowing origin-scoped Web data to persist between restarts.
+- Falls back to an operating-system-assigned local port if the preferred port is occupied.
+- Loads the service on `127.0.0.1`; it is not intentionally exposed as a LAN service.
 
-### 单实例与可靠退出
+### Single instance and reliable shutdown
 
-- 同一 Desktop 发行版只允许一个主实例。
-- 重复点击快捷方式时恢复、显示并聚焦已有窗口。
-- 正常退出时同步清理 Harness 子进程树，减少残留端口和重复服务。
-- 后端在就绪前失败时保留 stdout/stderr 尾部，显示更具体的启动错误。
+- Only one instance of the same Desktop distribution may run.
+- Repeated shortcut launches restore, show, and focus the existing window.
+- Normal app exit synchronously cleans up the Harness child-process tree.
+- Startup failures retain the tail of stdout/stderr and report a specific backend error.
 
-### 启动性能优化
+### Startup performance
 
-- Harness 后端与 Electron/Chromium 初始化并行进行。
-- 支付会话延迟到用户首次使用充值功能时初始化。
-- profile junction 兼容检查使用内核、依赖清单和目录状态指纹；只有内核或 profile 改变时才重新全量检查。
-- 日志包含 ISO 时间和相对启动耗时，可区分窗口创建、后端就绪与页面加载阶段。
-- 未启用 `NODE_COMPILE_CACHE`：在实际 Node 24 + Harness rc.2 基准中没有收益，反而略慢。
+- Starts the Harness backend in parallel with Electron/Chromium initialization.
+- Delays payment-session initialization until the user first uses top-up.
+- Caches the profile-junction compatibility audit using kernel, dependency-manifest, and directory-state fingerprints.
+- Adds ISO timestamps and relative timings for window creation, backend readiness, and page loading.
+- Does not enable `NODE_COMPILE_CACHE`: benchmarks with Node 24 and Harness rc.2 showed no gain and a small regression.
 
-一次本机验证中，重复 profile 检查从约 `478 ms` 降至 `14–16 ms`。打包版无外加插件的冒烟测试在约 `3.69 s` 后端就绪、`4.32 s` 完成页面加载；实际时间会随磁盘、杀毒软件、内核版本和用户插件数量变化。
+In one maintainer-machine verification, the repeated profile audit fell from approximately `478 ms` to `14–16 ms`. A packaged smoke test without external plugins reached backend readiness in approximately `3.69 s` and completed page loading in `4.32 s`. Actual results depend on storage, antivirus software, kernel version, and installed plugins.
 
-### 设置内的 Harness 内核更新
+### Two independent update channels in Settings
 
-- 显示当前 Desktop 版本和 Harness 内核版本。
-- 从 npm Registry 查询 `@deepseek-ai/dsh` 最新版本。
-- 在用户数据目录安装新内核，完整版本准备成功后才切换指针。
-- 下载或安装失败不会覆盖当前可用运行时。
-- 更新完成后由 Desktop 重启，并自动选择已经验证的新内核。
+- “Desktop application version” checks GitHub Releases, reports download progress, and runs the NSIS update before restarting.
+- “Harness kernel version” checks npm Registry for `@deepseek-ai/dsh`, prepares the new kernel under user data, and switches only after verification.
+- The app checks for Desktop releases in the background after startup; downloading and installation still require user confirmation in Settings.
+- Each channel has its own version, status, and controls, and a failed update leaves the working version intact.
 
-> 更新按钮更新的是 Harness npm 内核，不是 Electron Desktop Setup。Desktop 外壳更新仍通过 GitHub Releases 发布。
+> Version 1.1.4 has neither the Desktop update client nor `latest.yml`, so moving to 1.1.5 requires one final manual Setup installation. Starting with 1.1.5, later releases can be installed in-app.
 
-### 用量、余额与低余额提醒
+### Usage, balance, and low-balance warnings
 
-- 从本地会话事件中汇总今日、本月和累计请求/token。
-- 统计输入、输出、缓存读取、缓存写入和推理 token。
-- 对分叉会话进行请求去重，避免同一条 usage 被重复累计。
-- 使用当前 DeepSeek 凭据查询官方余额，并显示余额是否可用。
-- 余额不足时显示桌面提醒；刷新后余额恢复，旧警告会同步消失。
-- 本地统计只覆盖仍保存在本机的会话，不等同于官方账单。
+- Aggregates requests and tokens for today, the current month, and all retained history from local session events.
+- Tracks input, output, cache-read, cache-write, and reasoning tokens.
+- Deduplicates forked-session request records to avoid double counting.
+- Queries the official DeepSeek balance using the current DeepSeek credential.
+- Shows a low-balance warning and clears the stale warning after a successful balance refresh.
+- Treats local usage as an estimate over sessions still present on the machine, not as an official bill.
 
-### 原生二维码充值界面
+### Native QR-code top-up
 
-- 充值栏直接位于“设置 → 使用情况”，不是把完整充值网页嵌入应用。
-- 支持选择支付宝或微信支付、输入人民币金额并生成官方付款二维码。
-- 二维码在本地从 DeepSeek 官方订单 URL 生成，不经过第三方二维码服务。
-- 付款状态在后台轮询，支付成功后刷新余额。
-- 只有确实需要重新认证时才显示受控登录窗口；充值网页跳转会保持隐藏。
+- Places top-up directly under “Settings → Usage” instead of embedding the full platform website.
+- Supports a CNY amount and either Alipay or WeChat Pay.
+- Creates the QR code locally from the official DeepSeek payment-order URL; no third-party QR service is used.
+- Polls payment status in the background and refreshes the balance after payment succeeds.
+- Shows a controlled login window only when authentication is actually required and keeps top-up-page redirects hidden.
 
-支付订单、余额与价格以 DeepSeek 开放平台实际返回为准。本项目不代收款、不保存银行卡信息，也不提供第三方充值渠道。
+Orders, balances, and pricing are determined by the DeepSeek Open Platform response. This project does not collect payments, store bank-card information, or provide a third-party top-up channel.
 
-### 图片与视觉模型说明
+### Images and vision-model boundaries
 
-- 首次启动默认选择实验性目录项 `deepseek-v4-flash-vision-exp`。
-- `deepseek-v4-flash` 和 `deepseek-v4-pro` 能否处理图片，取决于当前 Harness 内核的模型目录、附件管线或视觉工具路由。
-- 模型目录显示图片能力，不等同于证明某个远端模型 API 原生接收图片。
-- 本仓库的分发 Setup 不内置 Vision Router；用户可自行安装兼容插件或配置视觉供应商。
+- Selects the experimental catalog entry `deepseek-v4-flash-vision-exp` on first launch.
+- Whether `deepseek-v4-flash` or `deepseek-v4-pro` can process an image depends on the active Harness model catalog, attachment pipeline, or vision-tool routing.
+- An image capability shown in a model catalog is not proof that a remote model API natively accepts images.
+- The public Setup does not bundle Vision Router. Users may install a compatible plugin or configure their own vision provider.
 
-## 插件边界
+## Plugin boundary
 
-Desktop 1.1.4 不预装任何第三方外加插件。以下组件不会进入 Git 仓库、Setup 或独立 Desktop profile：
+Desktop 1.1.5 does not preinstall third-party add-on plugins. The following components are not included in the Git repository, Setup, or isolated Desktop profile:
 
 - `dsh-client-liang-intensity-skin`
 - `@dsh-external/dsh-super-injector` / routing-suite
 - `dsh-vision-router`
-- iMessage 集成
-- 质谱接口
+- iMessage integration
+- mass-spectrometry integration
 
-Harness 自身采用插件架构，其正常运行所需的官方核心 bundle 不属于这里所说的“外加插件”。开发者本机可以在自己的 DSH profile 中安装插件；这些本机配置与公开分发内容相互独立。
+Harness itself uses a plugin architecture; official core bundles required for normal Harness operation are not “add-on plugins” in this document. A developer may install plugins in a local DSH profile without adding them to the public distribution.
 
-## 运行架构
+## Runtime architecture
 
 ```text
-Windows 快捷方式
-        │
-        ▼
-Electron 主进程 ── 单实例锁 / 日志 / 更新 / 用量 / 支付
-        │
-        ├── 启动页与安全 BrowserWindow
-        │
-        └── 便携 Node.js
+Windows shortcut
+      │
+      ▼
+Electron main process ── single-instance lock / logs / updates / usage / payments
+      │
+      ├── loading surface and sandboxed BrowserWindow
+      │
+      └── portable Node.js
               │
               ▼
        @deepseek-ai/dsh web
               │
-              ├── 上游 Harness Web UI
-              ├── 上游 Agent / Session / Tools
-              └── 用户自己的 DSH profile 与凭据
+              ├── upstream Harness Web UI
+              ├── upstream agents / sessions / tools
+              └── the user's DSH profile and credentials
 ```
 
-主窗口启用 `contextIsolation`、Renderer sandbox，并关闭 Renderer 的 Node.js 集成。后端子进程只接收运行所需环境变量；Desktop 不把完整凭据列表发送给渲染器。
+The main window enables `contextIsolation` and Renderer sandboxing and disables Node.js integration in the Renderer. The backend receives only the environment required to run; Desktop does not expose the complete credential list to the Renderer.
 
-## 数据目录与联网行为
+## Data and network behavior
 
-| 数据 | 位置/行为 |
+| Data | Location or behavior |
 | --- | --- |
-| Desktop 窗口和内核指针 | Electron 用户数据目录 |
-| 分发版 DSH 设置与会话 | Desktop 独立 DSH Home |
-| 可更新 Harness 运行时 | Desktop 用户数据目录下的 `runtime/` |
-| 启动日志 | `%TEMP%\dsh-desktop.log` |
-| API Key 与会话 | 仅保存在本机 Harness/凭据存储中 |
+| Desktop window state and kernel pointer | Electron user-data directory |
+| Distribution settings and sessions | Isolated Desktop DSH Home |
+| Updatable Harness runtimes | `runtime/` below the Desktop user-data directory |
+| Startup log | `%TEMP%\dsh-desktop.log` |
+| API keys and sessions | Stored locally by Harness/credential storage |
 
-模型请求与余额查询访问 DeepSeek 服务；内核检查访问 npm Registry；用户主动登录或充值时访问 DeepSeek 开放平台；Desktop Setup 下载来自 GitHub Releases。详细说明见 [PRIVACY.md](PRIVACY.md)。
+Model requests and balance queries contact DeepSeek services. Kernel checks contact npm Registry. User-initiated login and top-up contact the DeepSeek Open Platform. Desktop Setup downloads come from GitHub Releases. See [PRIVACY.md](PRIVACY.md) for details.
 
-## 系统要求
+## System requirements
 
-- Windows 10 或 Windows 11，x64。
-- 能够访问所配置模型供应商的网络。
-- 至少约 600 MB 可用磁盘空间用于安装、运行时更新和缓存。
-- 不要求系统预装 Node.js、npm、pnpm 或 Harness CLI。
+- Windows 10 or Windows 11, x64.
+- Network access to the configured model provider.
+- Approximately 600 MB or more of free disk space for installation, runtime updates, and cache.
+- No system-wide Node.js, npm, pnpm, or Harness CLI installation is required.
 
-当前不提供 macOS、Linux 或 Windows ARM64 安装包。
+macOS, Linux, and Windows ARM64 installers are not currently provided.
 
-## 开发
+## Development
 
-Desktop 源码位于 Fork 的 `apps/desktop`：
+Desktop source lives under `apps/desktop` in the fork:
 
 ```powershell
 git clone https://github.com/Dr1empty/deepseek-harness-desktop.git
@@ -179,68 +178,68 @@ npm test
 npm start
 ```
 
-在 Fork 中开发时，Desktop 自动使用仓库根目录的 Harness 源码。独立检出 `apps/desktop` 时，也可通过 `DSH_SOURCE_ROOT` 指定 Harness 源码目录。
+When developed inside the fork, Desktop automatically discovers the Harness source at the repository root. A standalone checkout may set `DSH_SOURCE_ROOT` to a Harness source directory.
 
-### 构建 Windows Setup
+### Build the Windows Setup
 
 ```powershell
 npm run release:desktop
 ```
 
-构建会执行：
+The build:
 
-1. 下载并校验 Node.js 24.18.0 Windows x64 运行时；
-2. 按锁文件安装 Harness 0.1.1-rc.2；
-3. 验证发行配置未包含第三方外加插件；
-4. 构建 `win-unpacked` 和 NSIS Setup；
-5. 生成 `SHA256SUMS.txt` 与 `release-manifest.json`。
+1. Downloads and verifies the Node.js 24.18.0 Windows x64 runtime.
+2. Installs Harness 0.1.1-rc.2 from the lockfile.
+3. Verifies that distribution configuration contains no third-party add-on plugins.
+4. Builds `win-unpacked` and the NSIS Setup.
+5. Generates `latest.yml` for electron-updater, plus `SHA256SUMS.txt` and `release-manifest.json`.
 
-生成目录均被 Git 忽略：
+Generated directories are ignored by Git:
 
 - `build/desktop-harness/`
 - `vendor/node/`
 - `dist-desktop/`
 - `dist-desktop-installer/`
 
-## 项目结构
+## Project structure
 
 ```text
-src/main.js                     Electron 生命周期、窗口和 IPC
-src/backend.js                  Harness 子进程、端口、就绪与链接维护
-src/preload.js                  设置内更新、用量和充值界面
-src/updater.js                  Harness npm 内核的验证安装与切换
-src/usage.js                    本地 usage 聚合和 DeepSeek 余额查询
-src/payment.js                  官方订单、受控登录与二维码支付
-tests/                          Desktop 单元测试
-build/prepare-desktop.cjs       可复现的运行时准备
-build/make-release-metadata.cjs Release 哈希与 manifest
-electron-builder-desktop*.yml   Windows 目录包和 NSIS 配置
+src/main.js                     Electron lifecycle, window, and IPC
+src/backend.js                  Harness process, port, readiness, and link maintenance
+src/preload.js                  Settings UI for updates, usage, and top-up
+src/desktop-updater.js          GitHub release checks, download progress, and Desktop installation
+src/updater.js                  Verified installation and switching of npm kernels
+src/usage.js                    Local usage aggregation and official balance query
+src/payment.js                  Official orders, controlled login, and QR payments
+tests/                          Desktop unit tests
+build/prepare-desktop.cjs       Reproducible runtime preparation
+build/make-release-metadata.cjs Release checksums and manifest
+electron-builder-desktop*.yml   Windows directory and NSIS build configuration
 ```
 
-## 验证状态
+## Validation status
 
-Desktop 1.1.4 已完成：
+Desktop 1.1.5 has passed:
 
-- 21 项 Node 单元测试；
-- Windows x64 真实 NSIS Setup 构建；
-- 打包态后端启动与页面加载冒烟测试；
-- 本机带四个外部插件的 profile 启动回归；
-- GitHub Actions 从干净环境重新安装依赖、运行测试、构建 Setup 并上传 Artifact；
-- Release Setup、blockmap、SHA-256 和机器可读 manifest 校验。
+- 23 Node unit tests;
+- a real Windows x64 NSIS Setup build;
+- packaged backend-start and page-load smoke testing;
+- a local startup regression with four external plugins in the maintainer profile;
+- GitHub Actions dependency installation, tests, Setup build, verification, and artifact upload from a clean runner;
+- Release Setup, blockmap, `latest.yml`, SHA-256, and machine-readable manifest verification.
 
-## 当前限制
+## Current limitations
 
-- Desktop Setup 尚未进行商业代码签名。
-- Electron 外壳不会自动更新自身，需要从 GitHub Release 安装新版 Setup。
-- 本地用量统计可能因会话删除、迁移或旧记录不完整而低于官方账单。
-- DeepSeek 开放平台登录、余额和支付接口变化可能影响充值功能。
-- 第三方插件兼容性由插件作者及用户 profile 决定，不属于无插件分发版保证范围。
+- The Desktop Setup is not commercially code-signed.
+- Local usage may be lower than official billing after sessions are deleted, moved, or recorded by an older runtime.
+- Changes to DeepSeek Open Platform login, balance, or payment APIs may affect top-up.
+- Compatibility of user-installed plugins is controlled by the plugin and local profile, not guaranteed by the plugin-free distribution.
 
-## 与上游的关系
+## Relationship to upstream
 
-- 上游项目：[deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness)
-- 本 Fork：[Dr1empty/deepseek-harness-desktop](https://github.com/Dr1empty/deepseek-harness-desktop)
-- Desktop 源码：[apps/desktop](https://github.com/Dr1empty/deepseek-harness-desktop/tree/master/apps/desktop)
-- Desktop Release：[v1.1.4-desktop](https://github.com/Dr1empty/deepseek-harness-desktop/releases/tag/v1.1.4-desktop)
+- Upstream: [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness)
+- This fork: [Dr1empty/deepseek-harness-desktop](https://github.com/Dr1empty/deepseek-harness-desktop)
+- Desktop source: [repository root](https://github.com/Dr1empty/deepseek-harness-desktop)
+- Desktop Release: [v1.1.5-desktop](https://github.com/Dr1empty/deepseek-harness-desktop/releases/tag/v1.1.5-desktop)
 
-上游 Harness 的代码和商标遵循其自身许可与政策；Desktop 自有代码按 [MIT License](LICENSE) 发布。第三方组件声明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)，版本变化见 [CHANGELOG.md](CHANGELOG.md)。
+Upstream Harness code and trademarks remain subject to upstream licenses and policies. Desktop-owned code is released under the [MIT License](LICENSE). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for third-party notices and [CHANGELOG.md](CHANGELOG.md) for version history.

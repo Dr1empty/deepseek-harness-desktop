@@ -12,8 +12,11 @@ const CUSTOM_NAV_IDS = new Set([UPDATE_NAV_ID, USAGE_NAV_ID])
 const CUSTOM_SECTION_IDS = new Set([UPDATE_SECTION_ID, USAGE_SECTION_ID])
 const wiredNativeButtons = new WeakSet()
 let syncQueued = false
-let cachedVersions = { desktopVersion: null, currentVersion: null }
-let cachedStatus = { text: '尚未检查更新', tone: 'muted' }
+let cachedVersions = { desktopVersion: null, currentVersion: null, desktopUpdateSupported: true }
+let cachedStatus = {
+  desktop: { text: '尚未检查 Desktop 更新', tone: 'muted' },
+  kernel: { text: '尚未检查内核更新', tone: 'muted' },
+}
 let cachedBalance = null
 let paymentPollTimer = null
 
@@ -55,6 +58,7 @@ function installStyles() {
       padding: 20px; border: 1px solid var(--dsw-alias-stroke-secondary, rgba(128,138,152,.24));
       border-radius: 16px; background: var(--dsw-alias-bg-layer-1, rgba(128,138,152,.08));
     }
+    #${UPDATE_SECTION_ID} .dsh-update-card + .dsh-update-card { margin-top: 12px; }
     #${UPDATE_SECTION_ID} .dsh-update-row {
       display: flex; align-items: center; justify-content: space-between; gap: 18px;
     }
@@ -317,35 +321,89 @@ function installStyles() {
 }
 
 function updateSectionDisplay(section) {
+  if (!section || !section.isConnected) return
   const desktop = section.querySelector('[data-field="desktop-version"]')
   const current = section.querySelector('[data-field="current-version"]')
-  const status = section.querySelector('[data-field="status"]')
-  desktop.textContent = cachedVersions.desktopVersion
-    ? `桌面版 ${cachedVersions.desktopVersion}`
-    : '桌面版'
-  current.textContent = cachedVersions.currentVersion || '正在读取…'
-  status.textContent = cachedStatus.text
-  status.dataset.tone = cachedStatus.tone
-  status.title = cachedStatus.text
+  const desktopCardVersion = section.querySelector('[data-field="desktop-card-version"]')
+  const desktopStatus = section.querySelector('[data-field="desktop-status"]')
+  const kernelStatus = section.querySelector('[data-field="kernel-status"]')
+  if (desktop) {
+    desktop.textContent = cachedVersions.desktopVersion
+      ? `桌面版 ${cachedVersions.desktopVersion}`
+      : '桌面版'
+  }
+  if (desktopCardVersion) desktopCardVersion.textContent = cachedVersions.desktopVersion || '正在读取…'
+  if (current) current.textContent = cachedVersions.currentVersion || '正在读取…'
+  if (desktopStatus) {
+    desktopStatus.textContent = cachedStatus.desktop.text
+    desktopStatus.dataset.tone = cachedStatus.desktop.tone
+    desktopStatus.title = cachedStatus.desktop.text
+  }
+  if (kernelStatus) {
+    kernelStatus.textContent = cachedStatus.kernel.text
+    kernelStatus.dataset.tone = cachedStatus.kernel.tone
+    kernelStatus.title = cachedStatus.kernel.text
+  }
+  syncUpdateButtons(section)
 }
 
-function setSectionBusy(section, busy) {
-  for (const button of section.querySelectorAll('button')) button.disabled = busy
+function syncUpdateButtons(section) {
+  if (!section || !section.isConnected) return
+  for (const button of section.querySelectorAll('button[data-action]')) {
+    const action = button.dataset.action || ''
+    const target = action.startsWith('desktop-') ? 'desktop' : 'kernel'
+    const busy = section.dataset[`${target}Busy`] === 'true'
+    button.disabled = busy || (target === 'desktop' && !cachedVersions.desktopUpdateSupported)
+  }
 }
 
-function setStatus(section, text, tone = 'muted') {
-  cachedStatus = { text, tone }
+function setSectionBusy(section, target, busy) {
+  section.dataset[`${target}Busy`] = busy ? 'true' : 'false'
+  syncUpdateButtons(section)
+}
+
+function setStatus(section, target, text, tone = 'muted') {
+  cachedStatus[target] = { text, tone }
   updateSectionDisplay(section)
 }
+
+function refreshMountedUpdateSections() {
+  for (const section of document.querySelectorAll(`#${UPDATE_SECTION_ID}`)) {
+    updateSectionDisplay(section)
+  }
+}
+
+ipcRenderer.on('dsh-desktop-update:progress', (_event, progress) => {
+  const rawPercent = Number(progress?.percent)
+  const percent = Number.isFinite(rawPercent) ? Math.min(100, Math.max(0, rawPercent)) : 0
+  cachedStatus.desktop = {
+    text: `正在下载 Desktop 更新：${percent.toFixed(1)}%`,
+    tone: 'muted',
+  }
+  refreshMountedUpdateSections()
+})
+
+ipcRenderer.on('dsh-desktop-update:available', (_event, info) => {
+  if (info?.currentVersion) cachedVersions.desktopVersion = info.currentVersion
+  cachedStatus.desktop = {
+    text: `发现 Desktop ${info?.latestVersion || '新版本'}，可立即下载并安装`,
+    tone: 'success',
+  }
+  refreshMountedUpdateSections()
+})
 
 async function loadUpdateState(section) {
   try {
     const result = await ipcRenderer.invoke('dsh-update:state')
     if (!result.ok) throw new Error(result.error)
     cachedVersions = { ...cachedVersions, ...result.value }
+    cachedVersions.desktopUpdateSupported = result.value.desktopUpdate?.supported !== false
+    if (!cachedVersions.desktopUpdateSupported) {
+      cachedStatus.desktop = { text: '开发模式不支持 Desktop 自动更新', tone: 'muted' }
+    }
     updateSectionDisplay(section)
   } catch (error) {
-    setStatus(section, `无法读取版本信息：${error && error.message ? error.message : String(error)}`, 'error')
+    setStatus(section, 'kernel', `无法读取版本信息：${error && error.message ? error.message : String(error)}`, 'error')
   }
 }
 
@@ -357,58 +415,105 @@ function createUpdateSection() {
     <div class="dsh-update-heading">
       <div>
         <h2>软件更新</h2>
-        <p>检查并安装 DeepSeek Harness 内核更新。安装完成后应用会自动重启。</p>
+        <p>Desktop 外壳和 Harness 内核分别更新；安装完成后应用会自动重启。</p>
       </div>
       <span class="dsh-update-desktop-version" data-field="desktop-version">桌面版</span>
+    </div>
+    <div class="dsh-update-card">
+      <div class="dsh-update-row">
+        <span class="dsh-update-label">Desktop 应用版本</span>
+        <span class="dsh-update-version" data-field="desktop-card-version">正在读取…</span>
+      </div>
+      <div class="dsh-update-status" data-field="desktop-status" data-tone="muted" role="status" aria-live="polite">尚未检查 Desktop 更新</div>
+      <div class="dsh-update-actions">
+        <button type="button" data-action="desktop-check">检查 Desktop</button>
+        <button type="button" class="primary" data-action="desktop-install">更新 Desktop</button>
+      </div>
     </div>
     <div class="dsh-update-card">
       <div class="dsh-update-row">
         <span class="dsh-update-label">Harness 内核版本</span>
         <span class="dsh-update-version" data-field="current-version">正在读取…</span>
       </div>
-      <div class="dsh-update-status" data-field="status" data-tone="muted" role="status" aria-live="polite">尚未检查更新</div>
+      <div class="dsh-update-status" data-field="kernel-status" data-tone="muted" role="status" aria-live="polite">尚未检查内核更新</div>
       <div class="dsh-update-actions">
-        <button type="button" data-action="check">检查更新</button>
-        <button type="button" class="primary" data-action="install">立即更新</button>
+        <button type="button" data-action="kernel-check">检查内核</button>
+        <button type="button" class="primary" data-action="kernel-install">更新内核</button>
       </div>
     </div>
   `
 
-  section.querySelector('[data-action="check"]').addEventListener('click', async () => {
-    setSectionBusy(section, true)
-    setStatus(section, '正在检查更新…')
+  section.querySelector('[data-action="desktop-check"]').addEventListener('click', async () => {
+    setSectionBusy(section, 'desktop', true)
+    setStatus(section, 'desktop', '正在检查 Desktop 更新…')
+    try {
+      const result = await ipcRenderer.invoke('dsh-desktop-update:check')
+      if (!result.ok) throw new Error(result.error)
+      const info = result.value
+      setStatus(section, 'desktop', info.updateAvailable
+        ? `发现 Desktop ${info.latestVersion}，当前版本 ${info.currentVersion}`
+        : `Desktop 已是最新版本 ${info.currentVersion}`, info.updateAvailable ? 'success' : 'muted')
+    } catch (error) {
+      setStatus(section, 'desktop', `Desktop 检查失败：${error && error.message ? error.message : String(error)}`, 'error')
+    } finally {
+      setSectionBusy(section, 'desktop', false)
+    }
+  })
+
+  section.querySelector('[data-action="desktop-install"]').addEventListener('click', async () => {
+    setSectionBusy(section, 'desktop', true)
+    setStatus(section, 'desktop', '正在下载 Desktop 更新，请勿关闭应用…')
+    try {
+      const result = await ipcRenderer.invoke('dsh-desktop-update:install')
+      if (!result.ok) throw new Error(result.error)
+      const info = result.value
+      if (info.readyToInstall) {
+        setStatus(section, 'desktop', `Desktop ${info.downloadedVersion} 已下载，正在安装并重启…`, 'success')
+      } else {
+        setStatus(section, 'desktop', `Desktop 已是最新版本 ${info.currentVersion}`)
+        setSectionBusy(section, 'desktop', false)
+      }
+    } catch (error) {
+      setStatus(section, 'desktop', `Desktop 更新失败：${error && error.message ? error.message : String(error)}`, 'error')
+      setSectionBusy(section, 'desktop', false)
+    }
+  })
+
+  section.querySelector('[data-action="kernel-check"]').addEventListener('click', async () => {
+    setSectionBusy(section, 'kernel', true)
+    setStatus(section, 'kernel', '正在检查内核更新…')
     try {
       const result = await ipcRenderer.invoke('dsh-update:check')
       if (!result.ok) throw new Error(result.error)
       const info = result.value
       cachedVersions.currentVersion = info.currentVersion
-      setStatus(section, info.updateAvailable
+      setStatus(section, 'kernel', info.updateAvailable
         ? `发现新版本 ${info.latestVersion}，当前版本 ${info.currentVersion}`
         : `当前已是最新版本 ${info.currentVersion}`, info.updateAvailable ? 'success' : 'muted')
     } catch (error) {
-      setStatus(section, `检查失败：${error && error.message ? error.message : String(error)}`, 'error')
+      setStatus(section, 'kernel', `内核检查失败：${error && error.message ? error.message : String(error)}`, 'error')
     } finally {
-      setSectionBusy(section, false)
+      setSectionBusy(section, 'kernel', false)
     }
   })
 
-  section.querySelector('[data-action="install"]').addEventListener('click', async () => {
-    setSectionBusy(section, true)
-    setStatus(section, '正在下载并安装，请勿关闭应用…')
+  section.querySelector('[data-action="kernel-install"]').addEventListener('click', async () => {
+    setSectionBusy(section, 'kernel', true)
+    setStatus(section, 'kernel', '正在下载并安装内核，请勿关闭应用…')
     try {
       const result = await ipcRenderer.invoke('dsh-update:install')
       if (!result.ok) throw new Error(result.error)
       const info = result.value
       cachedVersions.currentVersion = info.currentVersion
       if (info.updated) {
-        setStatus(section, `已更新到 ${info.currentVersion}，正在重启…`, 'success')
+        setStatus(section, 'kernel', `内核已更新到 ${info.currentVersion}，正在重启…`, 'success')
       } else {
-        setStatus(section, `当前已是最新版本 ${info.currentVersion}`)
-        setSectionBusy(section, false)
+        setStatus(section, 'kernel', `内核已是最新版本 ${info.currentVersion}`)
+        setSectionBusy(section, 'kernel', false)
       }
     } catch (error) {
-      setStatus(section, `更新失败：${error && error.message ? error.message : String(error)}`, 'error')
-      setSectionBusy(section, false)
+      setStatus(section, 'kernel', `内核更新失败：${error && error.message ? error.message : String(error)}`, 'error')
+      setSectionBusy(section, 'kernel', false)
     }
   })
 

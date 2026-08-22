@@ -1,12 +1,12 @@
 # DeepSeek Harness Desktop
 
-[中文](README.md) | English
+[中文](README.zh-CN.md) | English
 
-[![Desktop test](https://github.com/Dr1empty/deepseek-harness-desktop/actions/workflows/desktop-test.yml/badge.svg)](https://github.com/Dr1empty/deepseek-harness-desktop/actions/workflows/desktop-test.yml)
+[![Desktop test](https://github.com/Dr1empty/deepseek-harness-desktop/actions/workflows/test.yml/badge.svg)](https://github.com/Dr1empty/deepseek-harness-desktop/actions/workflows/test.yml)
 [![Release](https://img.shields.io/github/v/release/Dr1empty/deepseek-harness-desktop?include_prereleases&label=Desktop)](https://github.com/Dr1empty/deepseek-harness-desktop/releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%20x64-0078d4)](#system-requirements)
 
-DeepSeek Harness Desktop is an unofficial Windows distribution integrated into a fork of [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness). It preserves the upstream Harness Web UI, agents, sessions, tools, and plugin architecture while adding one-click installation, local-service lifecycle management, kernel updates, usage and balance reporting, native QR-code top-up, a single-instance desktop window, startup optimization, and reproducible releases.
+DeepSeek Harness Desktop is an unofficial Windows distribution integrated into a fork of [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness). It preserves the upstream Harness Web UI, agents, sessions, tools, and plugin architecture while adding one-click installation, local-service lifecycle management, Desktop and kernel updates, usage and balance reporting, native QR-code top-up, a single-instance desktop window, startup optimization, and reproducible releases.
 
 This project is not an official DeepSeek product and is not maintained or endorsed by DeepSeek.
 
@@ -14,12 +14,12 @@ This project is not an official DeepSeek product and is not maintained or endors
 
 | Platform | Download | Notes |
 | --- | --- | --- |
-| Windows 10/11 x64 | [DeepSeek Harness Desktop 1.1.4](https://github.com/Dr1empty/deepseek-harness-desktop/releases/tag/v1.1.4-desktop) | NSIS Setup with Node.js and Harness included; no development environment required |
+| Windows 10/11 x64 | [DeepSeek Harness Desktop 1.1.5](https://github.com/Dr1empty/deepseek-harness-desktop/releases) | NSIS Setup with Node.js and Harness included; no development environment required |
 
-The installer is not commercially code-signed, so Windows may display an “Unknown publisher” warning. Download `SHA256SUMS.txt` from the same Release or verify the 1.1.4 Setup hash:
+The installer is not commercially code-signed, so Windows may display an “Unknown publisher” warning. Download `SHA256SUMS.txt` from the same Release or verify the 1.1.5 Setup hash:
 
 ```text
-E45CD34A4FF3B1A7D02844DDC797565013ACC3DB1E0E6B1451E52FBE5FACF670
+85EB523F520D772A91823AA421A1DC3318C1C4873A6F5C179C33D4A614E1DF81
 ```
 
 ## Why this Desktop exists
@@ -42,7 +42,7 @@ This project focuses on running upstream Harness reliably as a Windows applicati
 | Local service | Started and stopped by the user through the CLI | Electron-managed child process, readiness detection, port fallback, shutdown cleanup, and failure reporting |
 | Window lifecycle | Runs in a browser tab | Single-instance desktop window; repeated shortcut launches focus the existing window |
 | Startup experience | Depends on CLI and browser startup | Local loading surface, parallel backend/Chromium initialization, and stage timings |
-| Kernel updates | Package-manager workflow | In-app npm version check, verified installation, fallback to the old runtime on failure, and restart-based switching |
+| Software updates | Package-manager workflow | Separate in-app updates for the Desktop shell and Harness npm kernel, preserving the working version on failure |
 | Usage and balance | Not a Desktop function in the core Web UI | Local session-token aggregation, official DeepSeek balance query, and low-balance warning |
 | Top-up | Opens the platform website | Native amount/payment-method UI with official Alipay or WeChat payment QR generation |
 | Release verification | Upstream tests target Harness itself | Desktop unit tests, real NSIS build, packaged smoke test, SHA-256 checksums, and release manifest |
@@ -76,15 +76,14 @@ This project focuses on running upstream Harness reliably as a Windows applicati
 
 In one maintainer-machine verification, the repeated profile audit fell from approximately `478 ms` to `14–16 ms`. A packaged smoke test without external plugins reached backend readiness in approximately `3.69 s` and completed page loading in `4.32 s`. Actual results depend on storage, antivirus software, kernel version, and installed plugins.
 
-### Harness kernel updates in Settings
+### Two independent update channels in Settings
 
-- Shows both the Desktop version and the active Harness kernel version.
-- Queries npm Registry for the latest `@deepseek-ai/dsh` version.
-- Installs a new kernel under the user-data directory and switches only after the complete runtime is verified.
-- Keeps the currently working runtime if download or installation fails.
-- Restarts Desktop after a successful update and loads the verified new kernel.
+- “Desktop application version” checks GitHub Releases, reports download progress, and runs the NSIS update before restarting.
+- “Harness kernel version” checks npm Registry for `@deepseek-ai/dsh`, prepares the new kernel under user data, and switches only after verification.
+- The app checks for Desktop releases in the background after startup; downloading and installation still require user confirmation in Settings.
+- Each channel has its own version, status, and controls, and a failed update leaves the working version intact.
 
-> The update button updates the Harness npm kernel, not the Electron Desktop Setup. Desktop-shell releases remain available through GitHub Releases.
+> Version 1.1.4 has neither the Desktop update client nor `latest.yml`, so moving to 1.1.5 requires one final manual Setup installation. Starting with 1.1.5, later releases can be installed in-app.
 
 ### Usage, balance, and low-balance warnings
 
@@ -114,7 +113,7 @@ Orders, balances, and pricing are determined by the DeepSeek Open Platform respo
 
 ## Plugin boundary
 
-Desktop 1.1.4 does not preinstall third-party add-on plugins. The following components are not included in the Git repository, Setup, or isolated Desktop profile:
+Desktop 1.1.5 does not preinstall third-party add-on plugins. The following components are not included in the Git repository, Setup, or isolated Desktop profile:
 
 - `dsh-client-liang-intensity-skin`
 - `@dsh-external/dsh-super-injector` / routing-suite
@@ -193,7 +192,7 @@ The build:
 2. Installs Harness 0.1.1-rc.2 from the lockfile.
 3. Verifies that distribution configuration contains no third-party add-on plugins.
 4. Builds `win-unpacked` and the NSIS Setup.
-5. Generates `SHA256SUMS.txt` and `release-manifest.json`.
+5. Generates `latest.yml` for electron-updater, plus `SHA256SUMS.txt` and `release-manifest.json`.
 
 Generated directories are ignored by Git:
 
@@ -208,6 +207,7 @@ Generated directories are ignored by Git:
 src/main.js                     Electron lifecycle, window, and IPC
 src/backend.js                  Harness process, port, readiness, and link maintenance
 src/preload.js                  Settings UI for updates, usage, and top-up
+src/desktop-updater.js          GitHub release checks, download progress, and Desktop installation
 src/updater.js                  Verified installation and switching of npm kernels
 src/usage.js                    Local usage aggregation and official balance query
 src/payment.js                  Official orders, controlled login, and QR payments
@@ -219,19 +219,18 @@ electron-builder-desktop*.yml   Windows directory and NSIS build configuration
 
 ## Validation status
 
-Desktop 1.1.4 has passed:
+Desktop 1.1.5 has passed:
 
-- 21 Node unit tests;
+- 23 Node unit tests;
 - a real Windows x64 NSIS Setup build;
 - packaged backend-start and page-load smoke testing;
 - a local startup regression with four external plugins in the maintainer profile;
 - GitHub Actions dependency installation, tests, Setup build, verification, and artifact upload from a clean runner;
-- Release Setup, blockmap, SHA-256, and machine-readable manifest verification.
+- Release Setup, blockmap, `latest.yml`, SHA-256, and machine-readable manifest verification.
 
 ## Current limitations
 
 - The Desktop Setup is not commercially code-signed.
-- The Electron shell does not self-update; install a newer Setup from GitHub Releases.
 - Local usage may be lower than official billing after sessions are deleted, moved, or recorded by an older runtime.
 - Changes to DeepSeek Open Platform login, balance, or payment APIs may affect top-up.
 - Compatibility of user-installed plugins is controlled by the plugin and local profile, not guaranteed by the plugin-free distribution.
@@ -240,7 +239,7 @@ Desktop 1.1.4 has passed:
 
 - Upstream: [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness)
 - This fork: [Dr1empty/deepseek-harness-desktop](https://github.com/Dr1empty/deepseek-harness-desktop)
-- Desktop source: [apps/desktop](https://github.com/Dr1empty/deepseek-harness-desktop/tree/master/apps/desktop)
-- Desktop Release: [v1.1.4-desktop](https://github.com/Dr1empty/deepseek-harness-desktop/releases/tag/v1.1.4-desktop)
+- Desktop source: [repository root](https://github.com/Dr1empty/deepseek-harness-desktop)
+- Desktop Release: [v1.1.5-desktop](https://github.com/Dr1empty/deepseek-harness-desktop/releases/tag/v1.1.5-desktop)
 
 Upstream Harness code and trademarks remain subject to upstream licenses and policies. Desktop-owned code is released under the [MIT License](LICENSE). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for third-party notices and [CHANGELOG.md](CHANGELOG.md) for version history.

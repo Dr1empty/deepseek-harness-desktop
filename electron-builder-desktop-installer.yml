@@ -2,6 +2,12 @@ appId: com.deepseek.harness.desktop
 productName: DeepSeek Harness Desktop
 copyright: Copyright © 2026
 
+publish:
+  provider: github
+  owner: Dr1empty
+  repo: deepseek-harness-desktop
+  releaseType: release
+
 directories:
   output: dist-desktop-installer
   buildResources: assets

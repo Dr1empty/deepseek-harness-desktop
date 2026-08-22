@@ -32,6 +32,7 @@ function log(...args) {
 let win = null
 let backend = null
 let updater = null
+let desktopUpdater = null
 let usageService = null
 let paymentService = null
 let runtime = null
@@ -221,8 +222,10 @@ async function boot() {
   }, 120_000) : null
   createWindow()
   const { DeepSeekPaymentService } = require('./payment')
+  const { DesktopUpdater } = require('./desktop-updater')
   const { DshUpdater } = require('./updater')
   const { UsageService } = require('./usage')
+  const { autoUpdater } = require('electron-updater')
   paymentService = new DeepSeekPaymentService({
     BrowserWindow,
     session,
@@ -246,6 +249,16 @@ async function boot() {
     npmCliPath,
     nodeArchivePath: app.isPackaged ? path.join(process.resourcesPath, 'update-tools', 'node.zip') : null,
   })
+  desktopUpdater = new DesktopUpdater({
+    autoUpdater,
+    currentVersion: app.getVersion(),
+    isPackaged: app.isPackaged,
+    log,
+    onProgress: progress => {
+      if (win && !win.isDestroyed()) win.webContents.send('dsh-desktop-update:progress', progress)
+    },
+  })
+  desktopUpdater.initialize()
   try {
     log('窗口已创建，等待提前启动的 backend 就绪...')
     const port = await backendReadyPromise
@@ -254,6 +267,18 @@ async function boot() {
     log('开始加载', url)
     await win.loadURL(url)
     log('页面加载完成', url)
+    if (!smokeTest) {
+      setTimeout(() => {
+        void desktopUpdater.checkForUpdates().then(info => {
+          if (info.updateAvailable && win && !win.isDestroyed()) {
+            win.webContents.send('dsh-desktop-update:available', info)
+            log('发现 Desktop 新版本:', info.latestVersion)
+          }
+        }).catch(error => {
+          log('自动检查 Desktop 更新失败:', error && error.message ? error.message : String(error))
+        })
+      }, 6000)
+    }
     if (smokeTest) {
       clearTimeout(smokeTimeout)
       log('打包启动冒烟测试通过')
@@ -288,8 +313,44 @@ ipcMain.handle('dsh-update:state', () => ({
   value: {
     desktopVersion: app.getVersion(),
     currentVersion: updater ? updater.currentVersion : null,
+    desktopUpdate: desktopUpdater ? desktopUpdater.state() : {
+      supported: app.isPackaged,
+      currentVersion: app.getVersion(),
+      downloadedVersion: null,
+    },
   },
 }))
+
+ipcMain.handle('dsh-desktop-update:check', async () => {
+  try {
+    if (!desktopUpdater) throw new Error('Desktop 更新服务尚未就绪')
+    return { ok: true, value: await desktopUpdater.checkForUpdates() }
+  } catch (error) {
+    log('检查 Desktop 更新失败:', error && error.message ? error.message : String(error))
+    return { ok: false, error: error && error.message ? error.message : String(error) }
+  }
+})
+
+ipcMain.handle('dsh-desktop-update:install', async () => {
+  try {
+    if (!desktopUpdater) throw new Error('Desktop 更新服务尚未就绪')
+    const value = await desktopUpdater.downloadLatest()
+    if (value.readyToInstall) {
+      log('Desktop 更新已下载，准备安装', value.downloadedVersion)
+      setTimeout(() => {
+        try {
+          desktopUpdater.installDownloaded()
+        } catch (error) {
+          log('启动 Desktop 安装程序失败:', error && error.message ? error.message : String(error))
+        }
+      }, 900)
+    }
+    return { ok: true, value }
+  } catch (error) {
+    log('Desktop 自动更新失败:', error && error.message ? error.message : String(error))
+    return { ok: false, error: error && error.message ? error.message : String(error) }
+  }
+})
 
 ipcMain.handle('dsh-update:install', async () => {
   try {
