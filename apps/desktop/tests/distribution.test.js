@@ -29,6 +29,7 @@ test('only Desktop build commands and product identity remain', () => {
   assert.equal(pkg.scripts.dist, undefined)
   assert.equal(pkg.scripts['dist:portable'], undefined)
   assert.equal(pkg.scripts['dist:installer'], undefined)
+  assert.equal(pkg.dependencies['electron-updater'], '6.8.9')
   assert.match(pkg.scripts['release:desktop'], /dist:desktop-installer/)
   assert.match(pkg.scripts['dist:desktop'], /--publish never/)
   assert.match(pkg.scripts['dist:desktop-installer'], /--publish never/)
@@ -37,4 +38,13 @@ test('only Desktop build commands and product identity remain', () => {
   const installer = fs.readFileSync(path.join(root, 'electron-builder-desktop-installer.yml'), 'utf8')
   assert.match(builder, /productName: DeepSeek Harness Desktop/)
   assert.match(installer, /productName: DeepSeek Harness Desktop/)
+  for (const config of [builder, installer]) {
+    assert.match(config, /provider: github/)
+    assert.match(config, /owner: Dr1empty/)
+    assert.match(config, /repo: deepseek-harness-desktop/)
+  }
+  assert.match(builder, /from: build\/app-update\.yml/)
+  const appUpdate = fs.readFileSync(path.join(root, 'build', 'app-update.yml'), 'utf8')
+  assert.match(appUpdate, /provider: github/)
+  assert.match(appUpdate, /updaterCacheDirName: dsh-desktop-updater/)
 })

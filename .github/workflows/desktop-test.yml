@@ -30,7 +30,7 @@ jobs:
           cache-dependency-path: apps/desktop/package-lock.json
       - run: npm ci
       - run: npm test
-      - run: npm run dist:desktop-installer
+      - run: npm run release:desktop
       - name: Verify NSIS Setup
         shell: pwsh
         run: |
@@ -44,4 +44,7 @@ jobs:
           path: |
             apps/desktop/dist-desktop-installer/*.exe
             apps/desktop/dist-desktop-installer/*.blockmap
+            apps/desktop/dist-desktop-installer/latest.yml
+            apps/desktop/dist-desktop-installer/SHA256SUMS.txt
+            apps/desktop/dist-desktop-installer/release-manifest.json
           if-no-files-found: error

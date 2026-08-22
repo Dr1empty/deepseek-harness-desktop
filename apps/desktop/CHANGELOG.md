@@ -2,6 +2,14 @@
 
 本文只记录 Desktop 发行版的变化；Harness 内核变化请查看其[上游更新记录](https://github.com/deepseek-ai/deepseek-harness/releases)。
 
+## 1.1.5 - 2026-08-22
+
+- 增加 Desktop 外壳自更新：从 GitHub Release 检查新版本、按需下载并显示进度，下载完成后安装和重启。
+- 将设置中的“软件更新”拆分为 Desktop 外壳与 Harness 内核两条独立更新通道，避免混淆版本和更新目标。
+- 启动后在后台检查 Desktop 新版本；开发模式明确禁用 Desktop 安装按钮。
+- Release 增加 electron-updater 所需的 `latest.yml`，并将其纳入 SHA-256 校验与发布清单。
+- 由于 1.1.4 不包含 Desktop 更新客户端和元数据，从 1.1.4 升级到 1.1.5 仍需手动安装一次 Setup；之后的版本可在应用内更新。
+
 ## 1.1.4 - 2026-08-22
 
 - 后端改为与 Electron/Chromium 初始化并行启动，缩短“正在启动本地服务”页面的等待时间。

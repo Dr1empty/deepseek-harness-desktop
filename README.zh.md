@@ -6,7 +6,7 @@
 [![Release](https://img.shields.io/github/v/release/Dr1empty/deepseek-harness-desktop?include_prereleases&label=Desktop)](https://github.com/Dr1empty/deepseek-harness-desktop/releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%20x64-0078d4)](#系统要求)
 
-DeepSeek Harness Desktop 是集成在 [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) Fork 中的非官方 Windows 桌面发行版。它保留上游 Harness 的 Web UI、Agent、会话和插件体系，在此基础上补齐一键安装、本地服务生命周期、内核更新、用量与余额、二维码充值、单实例窗口和可复现发布等桌面能力。
+DeepSeek Harness Desktop 是集成在 [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) Fork 中的非官方 Windows 桌面发行版。它保留上游 Harness 的 Web UI、Agent、会话和插件体系，在此基础上补齐一键安装、本地服务生命周期、Desktop 与内核更新、用量与余额、二维码充值、单实例窗口和可复现发布等桌面能力。
 
 本项目不是 DeepSeek 官方产品，也不代表 DeepSeek 的维护或背书。
 
@@ -14,12 +14,12 @@ DeepSeek Harness Desktop 是集成在 [deepseek-ai/deepseek-harness](https://git
 
 | 平台 | 安装包 | 说明 |
 | --- | --- | --- |
-| Windows 10/11 x64 | [DeepSeek Harness Desktop 1.1.4](https://github.com/Dr1empty/deepseek-harness-desktop/releases/tag/v1.1.4-desktop) | NSIS Setup，内含 Node.js 和 Harness，不要求预装开发环境 |
+| Windows 10/11 x64 | [DeepSeek Harness Desktop 1.1.5](https://github.com/Dr1empty/deepseek-harness-desktop/releases) | NSIS Setup，内含 Node.js 和 Harness，不要求预装开发环境 |
 
-安装包尚未进行商业代码签名，Windows 可能显示“未知发布者”。请从 Release 同时下载 `SHA256SUMS.txt`，或核对 1.1.4 Setup 的 SHA-256：
+安装包尚未进行商业代码签名，Windows 可能显示“未知发布者”。请从 Release 同时下载 `SHA256SUMS.txt`，或核对 1.1.5 Setup 的 SHA-256：
 
 ```text
-E45CD34A4FF3B1A7D02844DDC797565013ACC3DB1E0E6B1451E52FBE5FACF670
+673F9A31D119B102AD2F6DBE7411D5681F4CBF22670332FF68605420E24C722B
 ```
 
 ## 为什么做这个 Desktop
@@ -42,7 +42,7 @@ E45CD34A4FF3B1A7D02844DDC797565013ACC3DB1E0E6B1451E52FBE5FACF670
 | 本地服务 | 用户通过 CLI 启动和停止 | Electron 主进程托管子进程、就绪检测、端口回退、退出清理和故障提示 |
 | 窗口生命周期 | 浏览器标签页 | 单实例桌面窗口；重复点击只聚焦已有窗口 |
 | 启动体验 | 取决于 CLI 与浏览器 | 本地启动页、后端与 Chromium 并行初始化、启动阶段计时 |
-| 内核更新 | 通过包管理器手动处理 | 设置内检查 npm 新版、下载验证、失败保留旧版、成功后重启切换 |
+| 软件更新 | 通过包管理器手动处理 | 设置内分别更新 Desktop 外壳与 Harness npm 内核，失败时保留当前可用版本 |
 | 用量与余额 | 不属于核心 Web UI 的 Desktop 功能 | 汇总本机会话 token，查询 DeepSeek 官方余额并提示余额不足 |
 | 充值 | 跳转开放平台网页 | 设置内原生金额/支付方式界面，后台生成支付宝或微信官方付款二维码 |
 | 发行验证 | 上游测试面向 Harness 本体 | Desktop 单元测试、真实 NSIS 构建、打包态冒烟测试、SHA-256 与 manifest |
@@ -76,15 +76,14 @@ E45CD34A4FF3B1A7D02844DDC797565013ACC3DB1E0E6B1451E52FBE5FACF670
 
 一次本机验证中，重复 profile 检查从约 `478 ms` 降至 `14–16 ms`。打包版无外加插件的冒烟测试在约 `3.69 s` 后端就绪、`4.32 s` 完成页面加载；实际时间会随磁盘、杀毒软件、内核版本和用户插件数量变化。
 
-### 设置内的 Harness 内核更新
+### 设置内的双通道更新
 
-- 显示当前 Desktop 版本和 Harness 内核版本。
-- 从 npm Registry 查询 `@deepseek-ai/dsh` 最新版本。
-- 在用户数据目录安装新内核，完整版本准备成功后才切换指针。
-- 下载或安装失败不会覆盖当前可用运行时。
-- 更新完成后由 Desktop 重启，并自动选择已经验证的新内核。
+- “Desktop 应用版本”从 GitHub Releases 检查新版，显示下载进度，下载完成后运行 NSIS 更新并重启。
+- “Harness 内核版本”从 npm Registry 查询 `@deepseek-ai/dsh`，在用户数据目录准备并验证新内核后切换。
+- 应用启动后会在后台检查 Desktop 新版；实际下载安装仍由用户在设置中确认。
+- 两条更新通道使用独立的版本、状态和按钮，下载或安装失败不会覆盖当前可用版本。
 
-> 更新按钮更新的是 Harness npm 内核，不是 Electron Desktop Setup。Desktop 外壳更新仍通过 GitHub Releases 发布。
+> 1.1.4 尚无 Desktop 更新客户端和 `latest.yml`，因此升级到 1.1.5 需要最后一次手动安装 Setup；从 1.1.5 起可在应用内更新后续版本。
 
 ### 用量、余额与低余额提醒
 
@@ -114,7 +113,7 @@ E45CD34A4FF3B1A7D02844DDC797565013ACC3DB1E0E6B1451E52FBE5FACF670
 
 ## 插件边界
 
-Desktop 1.1.4 不预装任何第三方外加插件。以下组件不会进入 Git 仓库、Setup 或独立 Desktop profile：
+Desktop 1.1.5 不预装任何第三方外加插件。以下组件不会进入 Git 仓库、Setup 或独立 Desktop profile：
 
 - `dsh-client-liang-intensity-skin`
 - `@dsh-external/dsh-super-injector` / routing-suite
@@ -193,7 +192,7 @@ npm run release:desktop
 2. 按锁文件安装 Harness 0.1.1-rc.2；
 3. 验证发行配置未包含第三方外加插件；
 4. 构建 `win-unpacked` 和 NSIS Setup；
-5. 生成 `SHA256SUMS.txt` 与 `release-manifest.json`。
+5. 生成 electron-updater 使用的 `latest.yml`、`SHA256SUMS.txt` 与 `release-manifest.json`。
 
 生成目录均被 Git 忽略：
 
@@ -208,6 +207,7 @@ npm run release:desktop
 src/main.js                     Electron 生命周期、窗口和 IPC
 src/backend.js                  Harness 子进程、端口、就绪与链接维护
 src/preload.js                  设置内更新、用量和充值界面
+src/desktop-updater.js          GitHub Release 检查、下载进度与 Desktop 安装
 src/updater.js                  Harness npm 内核的验证安装与切换
 src/usage.js                    本地 usage 聚合和 DeepSeek 余额查询
 src/payment.js                  官方订单、受控登录与二维码支付
@@ -219,19 +219,18 @@ electron-builder-desktop*.yml   Windows 目录包和 NSIS 配置
 
 ## 验证状态
 
-Desktop 1.1.4 已完成：
+Desktop 1.1.5 已完成：
 
-- 21 项 Node 单元测试；
+- 23 项 Node 单元测试；
 - Windows x64 真实 NSIS Setup 构建；
 - 打包态后端启动与页面加载冒烟测试；
 - 本机带四个外部插件的 profile 启动回归；
 - GitHub Actions 从干净环境重新安装依赖、运行测试、构建 Setup 并上传 Artifact；
-- Release Setup、blockmap、SHA-256 和机器可读 manifest 校验。
+- Release Setup、blockmap、`latest.yml`、SHA-256 和机器可读 manifest 校验。
 
 ## 当前限制
 
 - Desktop Setup 尚未进行商业代码签名。
-- Electron 外壳不会自动更新自身，需要从 GitHub Release 安装新版 Setup。
 - 本地用量统计可能因会话删除、迁移或旧记录不完整而低于官方账单。
 - DeepSeek 开放平台登录、余额和支付接口变化可能影响充值功能。
 - 第三方插件兼容性由插件作者及用户 profile 决定，不属于无插件分发版保证范围。
@@ -241,6 +240,6 @@ Desktop 1.1.4 已完成：
 - 上游项目：[deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness)
 - 本 Fork：[Dr1empty/deepseek-harness-desktop](https://github.com/Dr1empty/deepseek-harness-desktop)
 - Desktop 源码：[apps/desktop](https://github.com/Dr1empty/deepseek-harness-desktop/tree/master/apps/desktop)
-- Desktop Release：[v1.1.4-desktop](https://github.com/Dr1empty/deepseek-harness-desktop/releases/tag/v1.1.4-desktop)
+- Desktop Release：[v1.1.5-desktop](https://github.com/Dr1empty/deepseek-harness-desktop/releases/tag/v1.1.5-desktop)
 
 上游 Harness 的代码和商标遵循其自身许可与政策；Desktop 自有代码按 [MIT License](apps/desktop/LICENSE) 发布。第三方组件声明见 [THIRD_PARTY_NOTICES.md](apps/desktop/THIRD_PARTY_NOTICES.md)，版本变化见 [CHANGELOG.md](apps/desktop/CHANGELOG.md)。
