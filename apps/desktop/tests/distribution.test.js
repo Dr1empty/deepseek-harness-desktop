@@ -24,6 +24,7 @@ test('distribution does not bundle external plugins', () => {
 
 test('only Desktop build commands and product identity remain', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
+  assert.match(pkg.packageManager, /^npm@/)
   assert.equal(pkg.scripts.dist, undefined)
   assert.equal(pkg.scripts['dist:portable'], undefined)
   assert.equal(pkg.scripts['dist:installer'], undefined)
