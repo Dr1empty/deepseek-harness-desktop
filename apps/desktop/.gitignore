@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Generated application and installer output
+dist/
+dist-*/
+
+# Generated Desktop build inputs
+build/desktop-harness/
+build/desktop-profile/
+build/clean-harness/
+build/clean-profile/
+build/clean-profile-v*/
+build/qa-*/
+build/dsh-flat/
+build/downloads/
+build/clean-plugin-packages/
+
+# Downloaded portable runtime
+vendor/node/
+vendor/node-v*-win-x64.zip
+
+# Local tooling and caches
+.codex-tmp/
+.cache/
+*.log
+builder-debug.yml
+builder-effective-config.yaml
+
+# Local configuration, credentials, and user data
+.env
+.env.*
+!.env.example
+.credentials.yaml
+.dsh/
+userdata/

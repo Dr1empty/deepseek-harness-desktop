@@ -1,0 +1,37 @@
+{
+    "name": "dsh-desktop",
+    "version": "1.1.2",
+    "description": "DeepSeek Harness 的非官方 Windows 桌面发行版",
+    "main": "src/main.js",
+    "author": "Dr1empty",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/Dr1empty/deepseek-harness-desktop.git",
+        "directory": "apps/desktop"
+    },
+    "homepage": "https://github.com/Dr1empty/deepseek-harness-desktop/tree/master/apps/desktop#readme",
+    "bugs": {
+        "url": "https://github.com/Dr1empty/deepseek-harness-desktop/issues"
+    },
+    "scripts": {
+        "dev": "electron .",
+        "start": "electron .",
+        "dist": "electron-builder",
+        "prepare:desktop": "node build/prepare-desktop.cjs",
+        "dist:desktop": "npm run prepare:desktop && electron-builder --config electron-builder-desktop.yml",
+        "dist:desktop-installer": "npm run dist:desktop && electron-builder --win nsis --prepackaged \"dist-desktop/win-unpacked\" --config electron-builder-desktop-installer.yml",
+        "dist:portable": "electron-builder --config electron-builder.yml",
+        "dist:installer": "electron-builder --win nsis --prepackaged \"dist/win-unpacked\" --config electron-builder-installer.yml",
+        "release:metadata": "node build/make-release-metadata.cjs",
+        "release:desktop": "npm run dist:desktop-installer && npm run release:metadata",
+        "test": "node --test tests/*.test.js"
+    },
+    "devDependencies": {
+        "electron": "^43.4.0",
+        "electron-builder": "^26.15.3"
+    },
+    "dependencies": {
+        "qrcode-generator": "^1.4.4"
+    }
+}

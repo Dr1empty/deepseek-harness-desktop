@@ -1,0 +1,6 @@
+{
+  "channel": "desktop",
+  "isolatedDshHome": true,
+  "userDataFolder": "DeepSeek Harness Desktop",
+  "legacyUserDataFolders": ["DeepSeek Harness Clean"]
+}
