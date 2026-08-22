@@ -48,7 +48,7 @@ pnpm run build
 pnpm dsh web
 ```
 
-`pnpm run build` 会准备仓库产物。`pnpm dsh web` 会直接使用这些已构建产物，不会重新构建。Desktop 使用独立 npm 锁文件，因此明确排除在根 pnpm workspace 之外。
+`pnpm run build` 会准备仓库产物。`pnpm dsh web` 会直接使用这些已构建产物，不会重新构建。Desktop 使用独立 npm 锁文件，因此明确排除在根 pnpm 与 npm workspace 图之外。
 
 ## 社区与支持
 

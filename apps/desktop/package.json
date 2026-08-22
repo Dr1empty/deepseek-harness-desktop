@@ -6,6 +6,7 @@
     "author": "Dr1empty",
     "license": "MIT",
     "packageManager": "npm@11.16.0",
+    "workspaces": [],
     "repository": {
         "type": "git",
         "url": "git+https://github.com/Dr1empty/deepseek-harness-desktop.git",

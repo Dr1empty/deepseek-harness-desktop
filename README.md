@@ -48,7 +48,7 @@ pnpm run build
 pnpm dsh web
 ```
 
-`pnpm run build` prepares the repository artifacts. `pnpm dsh web` uses those built artifacts without rebuilding. Desktop uses its independent npm lockfile and is intentionally excluded from the root pnpm workspace.
+`pnpm run build` prepares the repository artifacts. `pnpm dsh web` uses those built artifacts without rebuilding. Desktop uses its independent npm lockfile and is intentionally excluded from both the root pnpm and npm workspace graphs.
 
 ## Community and support
 
