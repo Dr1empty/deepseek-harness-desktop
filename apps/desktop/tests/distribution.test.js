@@ -30,6 +30,8 @@ test('only Desktop build commands and product identity remain', () => {
   assert.equal(pkg.scripts['dist:portable'], undefined)
   assert.equal(pkg.scripts['dist:installer'], undefined)
   assert.match(pkg.scripts['release:desktop'], /dist:desktop-installer/)
+  assert.match(pkg.scripts['dist:desktop'], /--publish never/)
+  assert.match(pkg.scripts['dist:desktop-installer'], /--publish never/)
 
   const builder = fs.readFileSync(path.join(root, 'electron-builder-desktop.yml'), 'utf8')
   const installer = fs.readFileSync(path.join(root, 'electron-builder-desktop-installer.yml'), 'utf8')

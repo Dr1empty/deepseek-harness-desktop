@@ -20,8 +20,8 @@
         "dev": "electron .",
         "start": "electron .",
         "prepare:desktop": "node build/prepare-desktop.cjs",
-        "dist:desktop": "npm run prepare:desktop && electron-builder --config electron-builder-desktop.yml",
-        "dist:desktop-installer": "npm run dist:desktop && electron-builder --win nsis --prepackaged \"dist-desktop/win-unpacked\" --config electron-builder-desktop-installer.yml",
+        "dist:desktop": "npm run prepare:desktop && electron-builder --config electron-builder-desktop.yml --publish never",
+        "dist:desktop-installer": "npm run dist:desktop && electron-builder --win nsis --prepackaged \"dist-desktop/win-unpacked\" --config electron-builder-desktop-installer.yml --publish never",
         "release:metadata": "node build/make-release-metadata.cjs",
         "release:desktop": "npm run dist:desktop-installer && npm run release:metadata",
         "test": "node --test tests/*.test.js"
