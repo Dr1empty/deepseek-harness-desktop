@@ -6,8 +6,8 @@ const path = require('node:path')
 
 const ROOT = path.resolve(__dirname, '..')
 const packageJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'))
-const outputDir = path.join(ROOT, 'dist-clean-installer')
-const setupName = `DeepSeek-Harness-Clean-Setup-${packageJson.version}.exe`
+const outputDir = path.join(ROOT, 'dist-desktop-installer')
+const setupName = `DeepSeek-Harness-Desktop-Setup-${packageJson.version}.exe`
 const names = [setupName, `${setupName}.blockmap`]
 
 function digest(file) {
@@ -31,7 +31,7 @@ fs.writeFileSync(
   path.join(outputDir, 'release-manifest.json'),
   JSON.stringify({
     schemaVersion: 1,
-    product: 'DeepSeek Harness Clean',
+    product: 'DeepSeek Harness Desktop',
     version: packageJson.version,
     platform: 'windows',
     arch: 'x64',

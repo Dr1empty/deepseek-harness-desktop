@@ -1,6 +1,6 @@
 {
-  "name": "dsh-profile-web-clean-distribution",
-  "version": "1.1.1",
+  "name": "dsh-profile-web-desktop-distribution",
+  "version": "1.1.2",
   "private": true,
   "dependencies": {
     "@dsh-external/dsh-super-injector": "file:./packages/dsh-external-dsh-super-injector-0.3.3.tgz",

@@ -6,7 +6,7 @@
 
 ## 报告漏洞
 
-请不要在公开 Issue 中提交 API Key、Cookie、访问令牌、日志全文或其他个人信息。优先使用仓库的 [Private vulnerability reporting](https://github.com/Dr1empty/deepseek-harness-clean/security/advisories/new) 提交报告，并包含：
+请不要在公开 Issue 中提交 API Key、Cookie、访问令牌、日志全文或其他个人信息。优先使用仓库的 [Private vulnerability reporting](https://github.com/Dr1empty/deepseek-harness-desktop/security/advisories/new) 提交报告，并包含：
 
 - 受影响版本与 Windows 版本；
 - 可重复的最小步骤；

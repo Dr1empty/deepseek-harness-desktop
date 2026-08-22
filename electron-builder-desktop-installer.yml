@@ -1,9 +1,9 @@
-appId: com.deepseek.harness.clean
-productName: DeepSeek Harness Clean
+appId: com.deepseek.harness.desktop
+productName: DeepSeek Harness Desktop
 copyright: Copyright © 2026
 
 directories:
-  output: dist-clean-installer
+  output: dist-desktop-installer
   buildResources: assets
 
 win:
@@ -13,7 +13,7 @@ win:
       arch: [x64]
 
 nsis:
-  artifactName: DeepSeek-Harness-Clean-Setup-${version}.${ext}
+  artifactName: DeepSeek-Harness-Desktop-Setup-${version}.${ext}
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true

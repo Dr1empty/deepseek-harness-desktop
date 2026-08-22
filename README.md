@@ -1,14 +1,14 @@
-# DeepSeek Harness Clean Desktop
+# DeepSeek Harness Desktop
 
-DeepSeek Harness Clean 是 [deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) 的非官方 Windows 桌面封装。它把 Web UI、Harness 后端和便携 Node 运行时装进一个可分发的 NSIS 安装包，不要求用户预装 Node.js 或 pnpm。
+DeepSeek Harness Desktop 是 [deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) 的非官方 Windows 桌面封装。它把 Web UI、Harness 后端和便携 Node 运行时装进一个可分发的 NSIS 安装包，不要求用户预装 Node.js 或 pnpm。本项目使用的 Harness Fork 位于 [Dr1empty/deepseek-harness](https://github.com/Dr1empty/deepseek-harness)。
 
 > 本项目不是 DeepSeek 官方产品，也不代表 DeepSeek 的维护或背书。
 
 ## 下载
 
-从 [GitHub Releases](https://github.com/Dr1empty/deepseek-harness-clean/releases/latest) 下载 `DeepSeek-Harness-Clean-Setup-1.1.1.exe`。安装包尚未进行商业代码签名，Windows 可能显示“未知发布者”；可使用同一 Release 中的 `SHA256SUMS.txt` 验证文件。
+从 [GitHub Releases](https://github.com/Dr1empty/deepseek-harness-desktop/releases/latest) 下载 `DeepSeek-Harness-Desktop-Setup-1.1.2.exe`。安装包尚未进行商业代码签名，Windows 可能显示“未知发布者”；可使用同一 Release 中的 `SHA256SUMS.txt` 验证文件。
 
-## CLEAN 发行版内容
+## Desktop 发行版内容
 
 - Harness 内核：`@deepseek-ai/dsh@0.1.1-rc.2`
 - 单实例桌面窗口：重复点击快捷方式只激活已运行窗口
@@ -19,7 +19,7 @@ DeepSeek Harness Clean 是 [deepseek-harness](https://github.com/deepseek-ai/dee
 - `@dsh-external/dsh-super-injector@0.3.3`
 - 独立用户数据和 DSH Home，不污染已有 Harness 配置
 
-CLEAN 版明确不包含：
+Desktop 版明确不包含：
 
 - `dsh-vision-router`
 - iMessage 集成
@@ -27,15 +27,15 @@ CLEAN 版明确不包含：
 
 ## 本地数据与联网行为
 
-首次使用时，需要在应用中配置自己的 DeepSeek API Key。密钥和会话保存在本机 CLEAN 独立数据目录，源码仓库和安装包都不包含用户凭据。余额查询、模型请求、主动登录和支付订单会访问 DeepSeek 服务；Harness 更新会访问 npm Registry。详细说明见 [PRIVACY.md](PRIVACY.md)。
+首次使用时，需要在应用中配置自己的 DeepSeek API Key。密钥和会话保存在本机 Desktop 独立数据目录，源码仓库和安装包都不包含用户凭据。首次运行会自动复制旧 `DeepSeek Harness Clean` 用户目录的数据，避免重命名后丢失配置。余额查询、模型请求、主动登录和支付订单会访问 DeepSeek 服务；Harness 更新会访问 npm Registry。详细说明见 [PRIVACY.md](PRIVACY.md)。
 
 ## 开发
 
 要求 Windows x64、Node.js 24 和 npm：
 
 ```powershell
-git clone https://github.com/Dr1empty/deepseek-harness-clean.git
-cd deepseek-harness-clean
+git clone https://github.com/Dr1empty/deepseek-harness-desktop.git
+cd deepseek-harness-desktop
 npm ci
 npm test
 npm start
@@ -43,49 +43,50 @@ npm start
 
 开发模式默认从仓库相邻目录 `../deepseek-harness` 查找上游源码；打包模式使用准备脚本生成的内置 npm 运行时。
 
-## 构建 CLEAN Setup
+## 构建 Desktop Setup
 
 ```powershell
 npm ci
-npm run release:clean
+npm run release:desktop
 ```
 
-`release:clean` 会自动完成：
+`release:desktop` 会自动完成：
 
 1. 下载并校验 Node.js 24.18.0 Windows x64 运行时；
 2. 按锁文件安装 Harness 0.1.1-rc.2；
 3. 获取两个固定版本的插件归档并校验 SHA-256（皮肤来自固定 Release/提交，注入器使用仓库内的上游 Release 原始归档）；
-4. 生成 CLEAN 独立 profile；
+4. 生成 Desktop 独立 profile；
 5. 构建 `win-unpacked` 和 NSIS Setup；
 6. 生成 `SHA256SUMS.txt` 与 `release-manifest.json`。
 
 所有路径都相对于仓库解析，不依赖维护者电脑上的固定构建目录。生成内容放在以下被忽略目录中：
 
-- `build/clean-harness/`
-- `build/clean-profile/`
+- `build/desktop-harness/`
+- `build/desktop-profile/`
 - `vendor/node/`
-- `dist-clean/`
-- `dist-clean-installer/`
+- `dist-desktop/`
+- `dist-desktop-installer/`
 
 ## 项目结构
 
 ```text
 src/                         Electron 主进程、预加载、更新、用量和支付逻辑
 tests/                       Node 单元测试
-build/prepare-clean.cjs      可复现 CLEAN 构建依赖准备
+build/prepare-desktop.cjs    可复现 Desktop 构建依赖准备
 build/make-release-metadata.cjs
                               发布哈希与清单生成
-assets/                      图标与 CLEAN 分发标识
-electron-builder-clean.yml  CLEAN 目录构建配置
-electron-builder-clean-installer.yml
-                              CLEAN NSIS 安装包配置
+assets/                      图标与 Desktop 分发标识
+electron-builder-desktop.yml
+                              Desktop 目录构建配置
+electron-builder-desktop-installer.yml
+                              Desktop NSIS 安装包配置
 ```
 
 ## 发布文件
 
 每个正式 Release 应至少包含：
 
-- `DeepSeek-Harness-Clean-Setup-<version>.exe`
+- `DeepSeek-Harness-Desktop-Setup-<version>.exe`
 - 对应 `.exe.blockmap`
 - `SHA256SUMS.txt`
 - `release-manifest.json`

@@ -50,11 +50,27 @@ function loadDistributionConfig() {
 
 const distribution = loadDistributionConfig()
 if (typeof distribution.userDataFolder === 'string' && distribution.userDataFolder.trim() !== '') {
-  app.setPath('userData', path.join(app.getPath('appData'), distribution.userDataFolder.trim()))
+  const appDataPath = app.getPath('appData')
+  const userDataPath = path.join(appDataPath, distribution.userDataFolder.trim())
+  if (!fs.existsSync(userDataPath) && Array.isArray(distribution.legacyUserDataFolders)) {
+    for (const folder of distribution.legacyUserDataFolders) {
+      if (typeof folder !== 'string' || folder.trim() === '') continue
+      const legacyPath = path.join(appDataPath, folder.trim())
+      if (!fs.existsSync(legacyPath)) continue
+      try {
+        fs.cpSync(legacyPath, userDataPath, { recursive: true, force: false, errorOnExist: false })
+        log('已从旧发行名称迁移用户数据:', folder.trim(), '→', distribution.userDataFolder.trim())
+      } catch (error) {
+        log('旧用户数据迁移失败，将使用新的 Desktop 目录:', error && error.message ? error.message : String(error))
+      }
+      break
+    }
+  }
+  app.setPath('userData', userDataPath)
 }
 
 // The lock is intentionally acquired after applying the distribution-specific
-// userData path. The normal and Clean editions may run side-by-side, while a
+// userData path. Different editions may run side-by-side, while a
 // second launch of the same edition only raises the existing window.
 const hasSingleInstanceLock = app.requestSingleInstanceLock()
 if (!hasSingleInstanceLock) {
@@ -72,9 +88,9 @@ if (!hasSingleInstanceLock) {
 
 function ensureIsolatedDshHome(dshHome) {
   fs.mkdirSync(dshHome, { recursive: true })
-  const markerPath = path.join(dshHome, '.clean-distribution-initialized')
+  const markerPath = path.join(dshHome, '.desktop-distribution-initialized')
   if (!fs.existsSync(markerPath) && app.isPackaged) {
-    const templatePath = path.join(process.resourcesPath, 'clean-profile')
+    const templatePath = path.join(process.resourcesPath, 'desktop-profile')
     if (fs.existsSync(templatePath)) {
       // 首次启动只补入发行模板中缺少的文件，不覆盖用户已经写入的内容。
       // 完成后写标记；用户日后主动卸载插件时不会在重启后被自动装回。
@@ -84,7 +100,7 @@ function ensureIsolatedDshHome(dshHome) {
         errorOnExist: false,
       })
     }
-    fs.writeFileSync(markerPath, 'clean-profile-v1\n', 'utf8')
+    fs.writeFileSync(markerPath, 'desktop-profile-v1\n', 'utf8')
   }
   const settingsPath = path.join(dshHome, 'settings.yaml')
   if (!fs.existsSync(settingsPath)) {
@@ -106,7 +122,7 @@ function createWindow() {
     height: 800,
     minWidth: 800,
     minHeight: 600,
-    title: 'DeepSeek Harness',
+    title: 'DeepSeek Harness Desktop',
     icon: path.join(__dirname, '..', 'assets', 'icon.ico'),
     backgroundColor: '#151515',
     autoHideMenuBar: true,

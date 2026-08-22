@@ -1,9 +1,9 @@
-appId: com.deepseek.harness.clean
-productName: DeepSeek Harness Clean
+appId: com.deepseek.harness.desktop
+productName: DeepSeek Harness Desktop
 copyright: Copyright © 2026
 
 directories:
-  output: dist-clean
+  output: dist-desktop
   buildResources: assets
 
 files:
@@ -12,12 +12,12 @@ files:
   - package.json
 
 extraResources:
-  - from: build/clean-harness
+  - from: build/desktop-harness
     to: harness
     filter:
       - package.json
       - .dsh-runtime-complete.json
-  - from: build/clean-harness/node_modules
+  - from: build/desktop-harness/node_modules
     to: harness/node_modules
     filter:
       - "**/*"
@@ -29,10 +29,10 @@ extraResources:
     to: node/pnpm.cmd
   - from: vendor/node-v24.18.0-win-x64.zip
     to: update-tools/node.zip
-  - from: assets/distribution-clean.json
+  - from: assets/distribution-desktop.json
     to: distribution.json
-  - from: build/clean-profile
-    to: clean-profile
+  - from: build/desktop-profile
+    to: desktop-profile
     filter:
       - "**/*"
 

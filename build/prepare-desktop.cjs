@@ -9,8 +9,8 @@ const { spawnSync } = require('node:child_process')
 
 const ROOT = path.resolve(__dirname, '..')
 const BUILD_DIR = path.join(ROOT, 'build')
-const RUNTIME_DIR = path.join(BUILD_DIR, 'clean-harness')
-const PROFILE_DIR = path.join(BUILD_DIR, 'clean-profile')
+const RUNTIME_DIR = path.join(BUILD_DIR, 'desktop-harness')
+const PROFILE_DIR = path.join(BUILD_DIR, 'desktop-profile')
 const PROFILE_WEB_DIR = path.join(PROFILE_DIR, 'profiles', 'web')
 const DOWNLOAD_DIR = path.join(BUILD_DIR, 'downloads')
 const VENDOR_DIR = path.join(ROOT, 'vendor')
@@ -118,8 +118,8 @@ function copyTemplate(sourceName, destination) {
 }
 
 function prepareRuntime() {
-  const packageTemplate = path.join(BUILD_DIR, 'clean-runtime.package.json')
-  const lockTemplate = path.join(BUILD_DIR, 'clean-runtime.package-lock.json')
+  const packageTemplate = path.join(BUILD_DIR, 'desktop-runtime.package.json')
+  const lockTemplate = path.join(BUILD_DIR, 'desktop-runtime.package-lock.json')
   const recipeHash = sha256(packageTemplate) + sha256(lockTemplate)
   const markerFile = path.join(RUNTIME_DIR, '.dsh-runtime-complete.json')
   const marker = readJson(markerFile)
@@ -132,8 +132,8 @@ function prepareRuntime() {
   console.log('准备 Harness 运行时:', DSH_VERSION)
   fs.rmSync(RUNTIME_DIR, { recursive: true, force: true })
   fs.mkdirSync(RUNTIME_DIR, { recursive: true })
-  copyTemplate('clean-runtime.package.json', path.join(RUNTIME_DIR, 'package.json'))
-  copyTemplate('clean-runtime.package-lock.json', path.join(RUNTIME_DIR, 'package-lock.json'))
+  copyTemplate('desktop-runtime.package.json', path.join(RUNTIME_DIR, 'package.json'))
+  copyTemplate('desktop-runtime.package-lock.json', path.join(RUNTIME_DIR, 'package-lock.json'))
   runNpm(['ci', '--omit=dev', '--ignore-scripts', '--legacy-peer-deps', '--no-audit', '--no-fund'], RUNTIME_DIR)
   fs.writeFileSync(markerFile, JSON.stringify({
     package: '@deepseek-ai/dsh',
@@ -144,18 +144,18 @@ function prepareRuntime() {
 }
 
 async function prepareProfile() {
-  const profileTemplate = path.join(BUILD_DIR, 'clean-profile.package.json')
+  const profileTemplate = path.join(BUILD_DIR, 'desktop-profile.package.json')
   const recipeHash = sha256(profileTemplate) + artifacts.skin.sha256 + artifacts.injector.sha256
-  const markerFile = path.join(PROFILE_DIR, '.clean-profile-complete.json')
+  const markerFile = path.join(PROFILE_DIR, '.desktop-profile-complete.json')
   const marker = readJson(markerFile)
   const skinEntry = path.join(PROFILE_WEB_DIR, 'node_modules', 'dsh-client-liang-intensity-skin', 'lib', 'client.js')
   const injectorEntry = path.join(PROFILE_WEB_DIR, 'node_modules', '@dsh-external', 'dsh-super-injector', 'lib', 'index.js')
   if (marker?.recipeHash === recipeHash && fs.existsSync(skinEntry) && fs.existsSync(injectorEntry)) {
-    console.log('已验证 CLEAN 插件配置')
+    console.log('已验证 Desktop 插件配置')
     return
   }
 
-  console.log('准备 CLEAN 插件配置')
+  console.log('准备 Desktop 插件配置')
   const skinArchive = path.join(DOWNLOAD_DIR, artifacts.skin.name)
   const injectorArchive = path.join(DOWNLOAD_DIR, artifacts.injector.name)
   await download(artifacts.skin, skinArchive)
@@ -163,8 +163,8 @@ async function prepareProfile() {
   fs.rmSync(PROFILE_DIR, { recursive: true, force: true })
   const packagesDir = path.join(PROFILE_WEB_DIR, 'packages')
   fs.mkdirSync(packagesDir, { recursive: true })
-  copyTemplate('clean-profile.package.json', path.join(PROFILE_WEB_DIR, 'package.json'))
-  copyTemplate('clean-profile.pnpm-workspace.yaml', path.join(PROFILE_WEB_DIR, 'pnpm-workspace.yaml'))
+  copyTemplate('desktop-profile.package.json', path.join(PROFILE_WEB_DIR, 'package.json'))
+  copyTemplate('desktop-profile.pnpm-workspace.yaml', path.join(PROFILE_WEB_DIR, 'pnpm-workspace.yaml'))
   fs.copyFileSync(skinArchive, path.join(packagesDir, artifacts.skin.name))
   fs.copyFileSync(injectorArchive, path.join(packagesDir, artifacts.injector.name))
   runNpm(['install', '--omit=dev', '--ignore-scripts', '--legacy-peer-deps', '--no-audit', '--no-fund'], PROFILE_WEB_DIR)
@@ -195,12 +195,12 @@ function prepareNode() {
 }
 
 async function main() {
-  if (process.platform !== 'win32') throw new Error('CLEAN 桌面发行版当前只支持 Windows x64 构建')
+  if (process.platform !== 'win32') throw new Error('Desktop 发行版当前只支持 Windows x64 构建')
   await download(artifacts.node, artifacts.node.file)
   prepareNode()
   prepareRuntime()
   await prepareProfile()
-  console.log('\nCLEAN 构建依赖准备完成。')
+  console.log('\nDesktop 构建依赖准备完成。')
 }
 
 main().catch((error) => {

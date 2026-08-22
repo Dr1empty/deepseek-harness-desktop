@@ -210,7 +210,7 @@ class Backend {
       const updated = loadInstalledRuntime(userDataPath, nodePath)
       if (updated) return updated
       const harnessRoot = path.join(process.resourcesPath, 'harness')
-      // Development/source bundles expose apps/cli directly. Clean distribution
+      // Development/source bundles expose apps/cli directly. Desktop distribution
       // embeds the published npm runtime, whose CLI lives under node_modules.
       // Support both layouts so the installer can ship a physical, junction-free
       // npm dependency tree downloaded by the verified desktop updater.
@@ -284,7 +284,7 @@ class Backend {
         PATH: [path.dirname(this.nodePath), process.env.PATH || ''].filter(Boolean).join(path.delimiter),
         // 桌面应用里不需要遥测
         DSH_TELEMETRY_DISABLED: '1',
-        // Clean 发行版使用独立配置目录，避免读取或改写普通安装的
+        // Desktop 发行版使用独立配置目录，避免读取或改写其他安装的
         // ~/.dsh；普通发行版不设置，保持 DSH 的原生用户目录语义。
         ...(this.dshHome ? { DSH_HOME: this.dshHome } : {}),
       },
