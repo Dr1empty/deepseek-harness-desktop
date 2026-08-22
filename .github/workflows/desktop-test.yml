@@ -17,9 +17,6 @@ permissions:
 jobs:
   node-test:
     runs-on: windows-latest
-    defaults:
-      run:
-        working-directory: apps/desktop
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -27,5 +24,13 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: apps/desktop/package-lock.json
-      - run: npm ci
-      - run: npm test
+      - name: Verify desktop package
+        shell: pwsh
+        run: |
+          if (-not (Test-Path -LiteralPath 'apps/desktop/package-lock.json')) {
+            throw 'apps/desktop/package-lock.json was not checked out'
+          }
+      - name: Install desktop dependencies
+        run: npm ci --prefix apps/desktop
+      - name: Run desktop tests
+        run: npm test --prefix apps/desktop
