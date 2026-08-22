@@ -1,7 +1,7 @@
 > [!NOTE]
-> **DeepSeek Harness Desktop for Windows**：本 Fork 在 [`apps/desktop`](apps/desktop/README.md) 中提供非官方 Windows 桌面版。
-> 它在上游 Harness 之上增加 NSIS 一键安装、便携 Node.js、本地服务托管、单实例窗口、内核更新、用量与余额、原生二维码充值、启动优化和可验证发布；公开 Setup 不预装第三方外加插件。
-> [查看完整功能说明](apps/desktop/README.md#相比上游增加了什么) · [下载 Releases](https://github.com/Dr1empty/deepseek-harness-desktop/releases)
+> **DeepSeek Harness Desktop for Windows** is the unofficial Windows distribution maintained in [`apps/desktop`](apps/desktop/README.en.md).
+> Beyond upstream Harness, it adds an NSIS installer, portable Node.js, managed local-service lifecycle, a single-instance window, kernel updates, usage and balance reporting, native QR-code top-up, startup optimization, and verifiable releases. The public Setup bundles no third-party add-on plugins.
+> [Detailed English documentation](apps/desktop/README.en.md#what-this-desktop-adds-beyond-upstream) · [中文说明](apps/desktop/README.md#相比上游增加了什么) · [Download Releases](https://github.com/Dr1empty/deepseek-harness-desktop/releases)
 
 # DeepSeek Harness Desktop
 

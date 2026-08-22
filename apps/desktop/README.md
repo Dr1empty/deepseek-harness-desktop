@@ -1,5 +1,7 @@
 # DeepSeek Harness Desktop
 
+中文 | [English](README.en.md)
+
 [![Desktop test](https://github.com/Dr1empty/deepseek-harness-desktop/actions/workflows/desktop-test.yml/badge.svg)](https://github.com/Dr1empty/deepseek-harness-desktop/actions/workflows/desktop-test.yml)
 [![Release](https://img.shields.io/github/v/release/Dr1empty/deepseek-harness-desktop?include_prereleases&label=Desktop)](https://github.com/Dr1empty/deepseek-harness-desktop/releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%20x64-0078d4)](#系统要求)
