@@ -37,10 +37,16 @@ fs.writeFileSync(
     arch: 'x64',
     components: {
       harness: '0.1.1-rc.2',
-      skin: 'dsh-client-liang-intensity-skin@0.1.4',
-      pluginManager: '@dsh-external/dsh-super-injector@0.3.3',
+      desktopShell: packageJson.version,
     },
-    excludedIntegrations: ['dsh-vision-router', 'imessage', 'mass-spectrometry'],
+    bundledExternalPlugins: [],
+    excludedIntegrations: [
+      'dsh-vision-router',
+      'imessage',
+      'mass-spectrometry',
+      'dsh-client-liang-intensity-skin',
+      '@dsh-external/dsh-super-injector',
+    ],
     files,
   }, null, 2) + '\n',
 )

@@ -1,4 +1,4 @@
-name: Desktop test
+name: Desktop test and package
 
 on:
   push:
@@ -18,8 +18,8 @@ jobs:
   node-test:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
@@ -34,3 +34,28 @@ jobs:
         run: npm ci --prefix apps/desktop
       - name: Run desktop tests
         run: npm test --prefix apps/desktop
+      - name: Build Desktop Setup
+        run: npm run release:desktop --prefix apps/desktop
+      - name: Verify release outputs
+        shell: pwsh
+        run: |
+          $dist = 'apps/desktop/dist-desktop-installer'
+          $setup = Get-ChildItem -LiteralPath $dist -Filter 'DeepSeek-Harness-Desktop-Setup-*.exe' -File
+          if ($setup.Count -ne 1) {
+            throw "Expected exactly one Desktop Setup, found $($setup.Count)"
+          }
+          foreach ($name in @('SHA256SUMS.txt', 'release-manifest.json')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $dist $name))) {
+              throw "Missing release output: $name"
+            }
+          }
+      - name: Launch packaged app smoke test
+        shell: pwsh
+        timeout-minutes: 3
+        run: |
+          $env:DSH_DESKTOP_SMOKE_TEST = '1'
+          $exe = 'apps/desktop/dist-desktop/win-unpacked/DeepSeek Harness Desktop.exe'
+          $process = Start-Process -FilePath $exe -PassThru -Wait -WindowStyle Hidden
+          if ($process.ExitCode -ne 0) {
+            throw "Packaged Desktop smoke test failed with exit code $($process.ExitCode)"
+          }

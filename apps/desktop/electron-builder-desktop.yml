@@ -23,18 +23,10 @@ extraResources:
       - "**/*"
   - from: vendor/node/node.exe
     to: node/node.exe
-  - from: vendor/node/node_modules/corepack
-    to: node/node_modules/corepack
-  - from: vendor/node/pnpm.cmd
-    to: node/pnpm.cmd
   - from: vendor/node-v24.18.0-win-x64.zip
     to: update-tools/node.zip
   - from: assets/distribution-desktop.json
     to: distribution.json
-  - from: build/desktop-profile
-    to: desktop-profile
-    filter:
-      - "**/*"
 
 win:
   icon: icon.ico

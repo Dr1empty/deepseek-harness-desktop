@@ -20,7 +20,7 @@ const os = require('node:os')
 const { loadInstalledRuntime } = require('./updater')
 
 // 首选固定端口：origin（127.0.0.1:PORT）跨启动稳定后，localStorage 等
-// 按 origin 隔离的浏览器存储才能跨启动持久化（例如 dsh-vision-router
+// 按 origin 隔离的浏览器存储才能跨启动持久化（例如客户端插件
 // 的首次引导「已看过」标记）。被占用时自动回退 OS 分配端口，见 main.js。
 const PREFERRED_PORT = 64788
 
@@ -294,9 +294,8 @@ class Backend {
       stdio: ['ignore', 'pipe', 'pipe'],
       env: {
         ...process.env,
-        // dsh plugin forwards directly to the `pnpm` command. Packaged builds
-        // ship Corepack and its pnpm.cmd next to node.exe, so make that
-        // directory discoverable without relying on a system-wide pnpm.
+        // Make the bundled Node executable discoverable without relying on a
+        // system-wide Node installation.
         PATH: [path.dirname(this.nodePath), process.env.PATH || ''].filter(Boolean).join(path.delimiter),
         // 桌面应用里不需要遥测
         DSH_TELEMETRY_DISABLED: '1',

@@ -36,6 +36,7 @@ let updater = null
 let usageService = null
 let paymentService = null
 let quitting = false
+const smokeTest = process.env.DSH_DESKTOP_SMOKE_TEST === '1'
 
 function loadDistributionConfig() {
   if (!app.isPackaged) return {}
@@ -49,7 +50,9 @@ function loadDistributionConfig() {
 }
 
 const distribution = loadDistributionConfig()
-if (typeof distribution.userDataFolder === 'string' && distribution.userDataFolder.trim() !== '') {
+if (smokeTest) {
+  app.setPath('userData', path.join(os.tmpdir(), `dsh-desktop-smoke-${process.pid}`))
+} else if (typeof distribution.userDataFolder === 'string' && distribution.userDataFolder.trim() !== '') {
   const appDataPath = app.getPath('appData')
   const userDataPath = path.join(appDataPath, distribution.userDataFolder.trim())
   if (!fs.existsSync(userDataPath) && Array.isArray(distribution.legacyUserDataFolders)) {
@@ -88,24 +91,10 @@ if (!hasSingleInstanceLock) {
 
 function ensureIsolatedDshHome(dshHome) {
   fs.mkdirSync(dshHome, { recursive: true })
-  const markerPath = path.join(dshHome, '.desktop-distribution-initialized')
-  if (!fs.existsSync(markerPath) && app.isPackaged) {
-    const templatePath = path.join(process.resourcesPath, 'desktop-profile')
-    if (fs.existsSync(templatePath)) {
-      // 首次启动只补入发行模板中缺少的文件，不覆盖用户已经写入的内容。
-      // 完成后写标记；用户日后主动卸载插件时不会在重启后被自动装回。
-      fs.cpSync(templatePath, dshHome, {
-        recursive: true,
-        force: false,
-        errorOnExist: false,
-      })
-    }
-    fs.writeFileSync(markerPath, 'desktop-profile-v1\n', 'utf8')
-  }
   const settingsPath = path.join(dshHome, 'settings.yaml')
   if (!fs.existsSync(settingsPath)) {
     // 只写非敏感的模型默认值。DeepSeek 凭据仍由用户在设置页录入；
-    // 不复制普通安装中的智谱、Vision Router 或任何个人配置。
+    // 不复制普通安装中的第三方供应商、插件或任何个人配置。
     fs.writeFileSync(settingsPath, [
       'agent-default-model:',
       '  provider: deepseek-official',
@@ -136,8 +125,12 @@ function createWindow() {
   })
 
   win.once('ready-to-show', () => {
-    win.show()
-    log('窗口已显示')
+    if (smokeTest) {
+      log('冒烟测试渲染器已就绪')
+    } else {
+      win.show()
+      log('窗口已显示')
+    }
   })
   win.on('closed', () => {
     win = null
@@ -173,6 +166,11 @@ function createWindow() {
 
 async function boot() {
   log('启动，isPackaged =', app.isPackaged)
+  const smokeTimeout = smokeTest ? setTimeout(() => {
+    log('打包启动冒烟测试超时')
+    if (backend) backend.stop()
+    app.exit(1)
+  }, 120_000) : null
   createWindow()
   paymentService = new DeepSeekPaymentService({
     BrowserWindow,
@@ -240,12 +238,23 @@ async function boot() {
     const url = `http://127.0.0.1:${port}`
     await win.loadURL(url)
     log('开始加载', url)
+    if (smokeTest) {
+      clearTimeout(smokeTimeout)
+      log('打包启动冒烟测试通过')
+      backend.stop()
+      app.exit(0)
+    }
   } catch (err) {
     const msg = err && err.message ? err.message : String(err)
     log('启动失败:', msg)
     backend.stop()
-    dialog.showErrorBox('DeepSeek Harness 启动失败', msg)
-    app.quit()
+    if (smokeTest) {
+      clearTimeout(smokeTimeout)
+      app.exit(1)
+    } else {
+      dialog.showErrorBox('DeepSeek Harness 启动失败', msg)
+      app.quit()
+    }
   }
 }
 
