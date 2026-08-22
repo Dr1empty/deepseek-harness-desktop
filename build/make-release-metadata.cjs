@@ -1,0 +1,48 @@
+'use strict'
+
+const crypto = require('node:crypto')
+const fs = require('node:fs')
+const path = require('node:path')
+
+const ROOT = path.resolve(__dirname, '..')
+const packageJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'))
+const outputDir = path.join(ROOT, 'dist-clean-installer')
+const setupName = `DeepSeek-Harness-Clean-Setup-${packageJson.version}.exe`
+const names = [setupName, `${setupName}.blockmap`]
+
+function digest(file) {
+  const hash = crypto.createHash('sha256')
+  hash.update(fs.readFileSync(file))
+  return hash.digest('hex').toUpperCase()
+}
+
+const files = names.map((name) => {
+  const file = path.join(outputDir, name)
+  if (!fs.existsSync(file)) throw new Error(`发布文件不存在: ${file}`)
+  return { name, size: fs.statSync(file).size, sha256: digest(file) }
+})
+
+fs.writeFileSync(
+  path.join(outputDir, 'SHA256SUMS.txt'),
+  files.map((file) => `${file.sha256}  ${file.name}`).join('\n') + '\n',
+)
+
+fs.writeFileSync(
+  path.join(outputDir, 'release-manifest.json'),
+  JSON.stringify({
+    schemaVersion: 1,
+    product: 'DeepSeek Harness Clean',
+    version: packageJson.version,
+    platform: 'windows',
+    arch: 'x64',
+    components: {
+      harness: '0.1.1-rc.2',
+      skin: 'dsh-client-liang-intensity-skin@0.1.4',
+      pluginManager: '@dsh-external/dsh-super-injector@0.3.3',
+    },
+    excludedIntegrations: ['dsh-vision-router', 'imessage', 'mass-spectrometry'],
+    files,
+  }, null, 2) + '\n',
+)
+
+console.log('已生成 SHA256SUMS.txt 与 release-manifest.json')

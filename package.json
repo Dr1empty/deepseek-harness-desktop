@@ -1,0 +1,36 @@
+{
+    "name": "dsh-desktop",
+    "version": "1.1.1",
+    "description": "DeepSeek Harness 的非官方 Windows 桌面封装与 CLEAN 发行版",
+    "main": "src/main.js",
+    "author": "Dr1empty",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/Dr1empty/deepseek-harness-clean.git"
+    },
+    "homepage": "https://github.com/Dr1empty/deepseek-harness-clean#readme",
+    "bugs": {
+        "url": "https://github.com/Dr1empty/deepseek-harness-clean/issues"
+    },
+    "scripts": {
+        "dev": "electron .",
+        "start": "electron .",
+        "dist": "electron-builder",
+        "prepare:clean": "node build/prepare-clean.cjs",
+        "dist:clean": "npm run prepare:clean && electron-builder --config electron-builder-clean.yml",
+        "dist:clean-installer": "npm run dist:clean && electron-builder --win nsis --prepackaged \"dist-clean/win-unpacked\" --config electron-builder-clean-installer.yml",
+        "dist:portable": "electron-builder --config electron-builder.yml",
+        "dist:installer": "electron-builder --win nsis --prepackaged \"dist/win-unpacked\" --config electron-builder-installer.yml",
+        "release:metadata": "node build/make-release-metadata.cjs",
+        "release:clean": "npm run dist:clean-installer && npm run release:metadata",
+        "test": "node --test tests/*.test.js"
+    },
+    "devDependencies": {
+        "electron": "^43.4.0",
+        "electron-builder": "^26.15.3"
+    },
+    "dependencies": {
+        "qrcode-generator": "^1.4.4"
+    }
+}

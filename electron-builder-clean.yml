@@ -1,0 +1,46 @@
+appId: com.deepseek.harness.clean
+productName: DeepSeek Harness Clean
+copyright: Copyright © 2026
+
+directories:
+  output: dist-clean
+  buildResources: assets
+
+files:
+  - src/**/*
+  - assets/**/*
+  - package.json
+
+extraResources:
+  - from: build/clean-harness
+    to: harness
+    filter:
+      - package.json
+      - .dsh-runtime-complete.json
+  - from: build/clean-harness/node_modules
+    to: harness/node_modules
+    filter:
+      - "**/*"
+  - from: vendor/node/node.exe
+    to: node/node.exe
+  - from: vendor/node/node_modules/corepack
+    to: node/node_modules/corepack
+  - from: vendor/node/pnpm.cmd
+    to: node/pnpm.cmd
+  - from: vendor/node-v24.18.0-win-x64.zip
+    to: update-tools/node.zip
+  - from: assets/distribution-clean.json
+    to: distribution.json
+  - from: build/clean-profile
+    to: clean-profile
+    filter:
+      - "**/*"
+
+win:
+  icon: icon.ico
+  target:
+    - target: dir
+      arch: [x64]
+
+electronDownload:
+  mirror: https://npmmirror.com/mirrors/electron/
