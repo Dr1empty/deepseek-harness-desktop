@@ -6,7 +6,7 @@ DeepSeek Harness Desktop 是 [deepseek-harness](https://github.com/deepseek-ai/d
 
 ## 下载
 
-从 [GitHub Releases](https://github.com/Dr1empty/deepseek-harness-desktop/releases/latest) 下载 `DeepSeek-Harness-Desktop-Setup-1.1.3.exe`。安装包尚未进行商业代码签名，Windows 可能显示“未知发布者”；可使用同一 Release 中的 `SHA256SUMS.txt` 验证文件。
+从 [GitHub Releases](https://github.com/Dr1empty/deepseek-harness-desktop/releases/latest) 下载 `DeepSeek-Harness-Desktop-Setup-1.1.4.exe`。安装包尚未进行商业代码签名，Windows 可能显示“未知发布者”；可使用同一 Release 中的 `SHA256SUMS.txt` 验证文件。
 
 ## Desktop 发行版内容
 

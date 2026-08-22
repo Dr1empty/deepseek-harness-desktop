@@ -2,21 +2,11 @@ name: Desktop test
 
 on:
   push:
-    branches: [master]
-    paths:
-      - 'apps/desktop/**'
-      - '.github/workflows/desktop-test.yml'
+    branches: [main]
   pull_request:
-    paths:
-      - 'apps/desktop/**'
-      - '.github/workflows/desktop-test.yml'
 
 permissions:
   contents: read
-
-defaults:
-  run:
-    working-directory: apps/desktop
 
 jobs:
   desktop-test:
@@ -27,7 +17,6 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: apps/desktop/package-lock.json
       - run: npm ci
       - run: npm test
       - run: npm run dist:desktop-installer
@@ -42,6 +31,6 @@ jobs:
         with:
           name: DeepSeek-Harness-Desktop-Setup
           path: |
-            apps/desktop/dist-desktop-installer/*.exe
-            apps/desktop/dist-desktop-installer/*.blockmap
+            dist-desktop-installer/*.exe
+            dist-desktop-installer/*.blockmap
           if-no-files-found: error

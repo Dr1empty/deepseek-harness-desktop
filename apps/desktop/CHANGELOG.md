@@ -2,6 +2,13 @@
 
 本文只记录 Desktop 发行版的变化；Harness 内核变化请查看其[上游更新记录](https://github.com/deepseek-ai/deepseek-harness/releases)。
 
+## 1.1.4 - 2026-08-22
+
+- 后端改为与 Electron/Chromium 初始化并行启动，缩短“正在启动本地服务”页面的等待时间。
+- 为 profile junction 兼容性检查增加依赖指纹缓存；内核与插件未变化时不再每次全量扫描。
+- 支付会话改为首次使用时再初始化，减少启动阶段的非必要工作。
+- 启动日志增加 ISO 时间和进程内阶段耗时，便于区分后端就绪与页面加载瓶颈。
+
 ## 1.1.3 - 2026-08-22
 
 - 删除所有第三方外加插件、插件 profile、归档与下载逻辑，只保留 Harness 官方核心组件和 Desktop 自有功能。

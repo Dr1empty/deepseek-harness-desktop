@@ -1,3 +1,6 @@
+> [!NOTE]
+> **DeepSeek Harness Desktop for Windows**：本 Fork 在 [`apps/desktop`](apps/desktop/README.md) 中提供非官方 Windows 桌面版；安装包请从 [Releases](https://github.com/Dr1empty/deepseek-harness-desktop/releases) 下载。
+
 # DeepSeek Harness Desktop
 
 English | [中文](README.zh.md)

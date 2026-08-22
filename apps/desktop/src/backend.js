@@ -152,9 +152,38 @@ function restoreJunctions(harnessRoot) {
  */
 function clearStaleProfileJunctions(runtime) {
   const installedModules = path.join(runtime.harnessRoot, 'node_modules')
-  const dshHome = process.env.DSH_HOME || path.join(os.homedir(), '.dsh')
+  const dshHome = runtime.dshHome || process.env.DSH_HOME || path.join(os.homedir(), '.dsh')
   const fallbackModules = path.join(dshHome, 'profiles', 'node_modules')
   if (!fs.existsSync(installedModules) || !fs.existsSync(fallbackModules)) return 0
+
+  // 这项兼容性修复只在内核或 profile 依赖发生变化时才有必要。旧实现每次
+  // 启动都会遍历整个 npm 顶层依赖树并 realpath 每个 junction，在 Windows
+  // + 实时杀毒环境中会稳定消耗数百毫秒。用目录/依赖清单指纹缓存成功结果；
+  // pnpm 重新安装 profile 或内核更新都会改变指纹并自动触发重新检查。
+  const statePath = runtime.maintenanceStatePath || null
+  const statFingerprint = file => {
+    try {
+      const stat = fs.statSync(file)
+      return `${stat.size}:${stat.mtimeMs}`
+    } catch (_) {
+      return 'missing'
+    }
+  }
+  const fingerprint = {
+    schema: 1,
+    harnessRoot: path.resolve(runtime.harnessRoot).toLowerCase(),
+    version: runtime.version || '',
+    installedModules: statFingerprint(installedModules),
+    fallbackModules: statFingerprint(fallbackModules),
+    profileModules: statFingerprint(path.join(dshHome, 'profiles', 'web', 'node_modules', '.modules.yaml')),
+    profilePackage: statFingerprint(path.join(dshHome, 'profiles', 'web', 'package.json')),
+  }
+  if (statePath) {
+    try {
+      const previous = JSON.parse(fs.readFileSync(statePath, 'utf8'))
+      if (JSON.stringify(previous.fingerprint) === JSON.stringify(fingerprint)) return 0
+    } catch (_) {}
+  }
 
   const packages = []
   for (const entry of fs.readdirSync(installedModules, { withFileTypes: true })) {
@@ -190,6 +219,14 @@ function clearStaleProfileJunctions(runtime) {
       if (error && error.code !== 'ENOENT') throw error
     }
   }
+  if (statePath) {
+    try {
+      fs.mkdirSync(path.dirname(statePath), { recursive: true })
+      fs.writeFileSync(statePath, JSON.stringify({ fingerprint, checkedAt: new Date().toISOString() }), 'utf8')
+    } catch (_) {
+      // 缓存不可写不影响正确性；下一次启动只会退化为旧的全量检查。
+    }
+  }
   return removed
 }
 
@@ -204,6 +241,7 @@ class Backend {
     this.version = runtime.version
     this.source = runtime.source
     this.dshHome = runtime.dshHome || null
+    this.maintenanceStatePath = runtime.maintenanceStatePath || null
     this.child = null
     this.port = null
     this.portArg = 0

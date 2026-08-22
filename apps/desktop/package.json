@@ -1,6 +1,6 @@
 {
     "name": "dsh-desktop",
-    "version": "1.1.3",
+    "version": "1.1.4",
     "description": "DeepSeek Harness 的非官方 Windows 桌面发行版",
     "main": "src/main.js",
     "author": "Dr1empty",
@@ -9,10 +9,9 @@
     "workspaces": [],
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/Dr1empty/deepseek-harness-desktop.git",
-        "directory": "apps/desktop"
+        "url": "git+https://github.com/Dr1empty/deepseek-harness-desktop.git"
     },
-    "homepage": "https://github.com/Dr1empty/deepseek-harness-desktop/tree/master/apps/desktop#readme",
+    "homepage": "https://github.com/Dr1empty/deepseek-harness-desktop#readme",
     "bugs": {
         "url": "https://github.com/Dr1empty/deepseek-harness-desktop/issues"
     },
