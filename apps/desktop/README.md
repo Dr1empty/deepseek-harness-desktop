@@ -19,7 +19,7 @@ DeepSeek Harness Desktop 是集成在 [deepseek-ai/deepseek-harness](https://git
 安装包尚未进行商业代码签名，Windows 可能显示“未知发布者”。请从 Release 同时下载 `SHA256SUMS.txt`，或核对 1.1.5 Setup 的 SHA-256：
 
 ```text
-673F9A31D119B102AD2F6DBE7411D5681F4CBF22670332FF68605420E24C722B
+9533A0BEB11C6DF91E80B5EC0A0FD7FB639A0956FEBF910D6199E3DE8EBEDE62
 ```
 
 ## 为什么做这个 Desktop

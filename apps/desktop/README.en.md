@@ -19,7 +19,7 @@ This project is not an official DeepSeek product and is not maintained or endors
 The installer is not commercially code-signed, so Windows may display an “Unknown publisher” warning. Download `SHA256SUMS.txt` from the same Release or verify the 1.1.5 Setup hash:
 
 ```text
-673F9A31D119B102AD2F6DBE7411D5681F4CBF22670332FF68605420E24C722B
+9533A0BEB11C6DF91E80B5EC0A0FD7FB639A0956FEBF910D6199E3DE8EBEDE62
 ```
 
 ## Why this Desktop exists
