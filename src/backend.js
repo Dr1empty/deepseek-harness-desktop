@@ -389,39 +389,46 @@ class Backend {
    * @param {number} timeoutMs
    * @returns {Promise<number>}
    */
-  waitReady(timeoutMs = 120000) {
+  waitReady(timeoutMs = 45000) {
     return new Promise((resolve, reject) => {
       const child = this.child
       if (!child) return reject(new Error('backend 尚未启动'))
 
       let settled = false
-      const timer = setTimeout(() => {
-        if (!settled) {
-          settled = true
-          reject(new Error('后端启动超时，最近输出：\n' + this.lastLogs()))
-        }
-      }, timeoutMs)
-
+      const finish = (callback) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        child.stdout.off('data', check)
+        child.off('exit', onExit)
+        callback()
+      }
+      const onExit = (code, signal) => {
+        finish(() => reject(new Error(`后端进程提前退出 (code=${code}, signal=${signal})：\n` + this.lastLogs())))
+      }
       const check = () => {
         const m = this.stdoutTail.match(READY_RE)
-        if (m) {
+        if (!m) return
+        finish(() => {
           this.port = Number(m[1])
           this._ready = true
-          settled = true
-          clearTimeout(timer)
           resolve(this.port)
-        }
+        })
       }
-      // 就绪信号可能在我们注册等待前就已经打到 stdoutTail 里了
-      check()
+      const timer = setTimeout(() => {
+        finish(() => reject(new Error('后端启动超时，最近输出：\n' + this.lastLogs())))
+      }, timeoutMs)
+
       child.stdout.on('data', check)
-      child.on('exit', (code, signal) => {
-        if (!settled) {
-          settled = true
-          clearTimeout(timer)
-          reject(new Error(`后端进程提前退出 (code=${code}, signal=${signal})：\n` + this.lastLogs()))
-        }
-      })
+      child.once('exit', onExit)
+      // 子进程可能在 start() 返回到 waitReady() 注册监听器之前就已退出。
+      // 先注册监听器，再同步检查 exitCode，关闭这个会白等完整超时的竞态窗口。
+      if (child.exitCode !== null || child.signalCode !== null) {
+        onExit(child.exitCode, child.signalCode)
+        return
+      }
+      // 就绪信号也可能在我们注册等待前已经写入 stdoutTail。
+      check()
     })
   }
 

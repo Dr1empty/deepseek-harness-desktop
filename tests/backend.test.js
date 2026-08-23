@@ -2,10 +2,11 @@
 
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
+const { EventEmitter } = require('node:events')
 const os = require('node:os')
 const path = require('node:path')
 const test = require('node:test')
-const { clearStaleProfileJunctions } = require('../src/backend')
+const { Backend, clearStaleProfileJunctions } = require('../src/backend')
 
 test('caches the successful profile junction audit until dependencies change', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-backend-cache-'))
@@ -30,4 +31,23 @@ test('caches the successful profile junction audit until dependencies change', (
   fs.appendFileSync(path.join(webProfile, 'package.json'), ' ')
   assert.equal(clearStaleProfileJunctions(runtime), 0)
   assert.notEqual(fs.readFileSync(statePath, 'utf8'), firstState)
+})
+
+test('waitReady rejects immediately when the backend exited before listeners were attached', async () => {
+  const backend = new Backend({
+    nodePath: 'node',
+    harnessRoot: process.cwd(),
+    binPath: 'bin.js',
+    version: '1.0.0',
+  })
+  const child = new EventEmitter()
+  child.stdout = new EventEmitter()
+  child.exitCode = 1
+  child.signalCode = null
+  backend.child = child
+  backend.stderrTail = 'fast startup failure'
+
+  const started = Date.now()
+  await assert.rejects(backend.waitReady(1000), /提前退出.*fast startup failure/s)
+  assert.ok(Date.now() - started < 200, 'fast child exit must not wait for the startup timeout')
 })

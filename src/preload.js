@@ -221,6 +221,25 @@ function installStyles() {
       color: var(--dsw-alias-label-primary, #e7e9ed); font-weight: 500; font-variant-numeric: tabular-nums;
     }
     #${USAGE_SECTION_ID} .dsh-balance-card { margin-top: 12px; }
+    #${USAGE_SECTION_ID} .dsh-usage-series { margin-top: 12px; }
+    #${USAGE_SECTION_ID} .dsh-series-columns {
+      display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px;
+    }
+    #${USAGE_SECTION_ID} .dsh-series-head {
+      color: var(--dsw-alias-label-secondary, #a7abb4); font-size: 12px; line-height: 18px; margin-bottom: 6px;
+    }
+    #${USAGE_SECTION_ID} .dsh-series-row {
+      display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; align-items: center;
+      padding: 2.5px 0; font-size: 12px; line-height: 18px; font-variant-numeric: tabular-nums;
+      color: var(--dsw-alias-label-primary, #e7e9ed);
+    }
+    #${USAGE_SECTION_ID} .dsh-series-row span:nth-child(2) {
+      color: var(--dsw-alias-label-secondary, #a7abb4); text-align: right;
+    }
+    #${USAGE_SECTION_ID} .dsh-series-row span:nth-child(3) { text-align: right; min-width: 68px; }
+    #${USAGE_SECTION_ID} .dsh-series-note {
+      margin-top: 10px; color: var(--dsw-alias-label-secondary, #a7abb4); font-size: 11px; line-height: 17px;
+    }
     #${USAGE_SECTION_ID} .dsh-balance-title {
       display: flex; align-items: center; justify-content: space-between; gap: 16px;
       margin-bottom: 14px; font-size: 14px; font-weight: 500;
@@ -249,6 +268,7 @@ function installStyles() {
     @media (max-width: 980px) {
       #${USAGE_SECTION_ID} .dsh-usage-grid { grid-template-columns: 1fr; }
       #${USAGE_SECTION_ID} .dsh-balance-row { grid-template-columns: 1fr 1fr; }
+      #${USAGE_SECTION_ID} .dsh-series-columns { grid-template-columns: 1fr; }
     }
     #${LOW_BALANCE_TOAST_ID} {
       position: fixed; right: 24px; bottom: 24px; z-index: 2147483000;
@@ -550,6 +570,33 @@ function renderUsagePeriod(section, name, usage) {
   root.querySelector('[data-value="input"]').textContent = formatTokens((usage?.inputTokens || 0) + (usage?.cacheReadTokens || 0) + (usage?.cacheWriteTokens || 0))
   root.querySelector('[data-value="output"]').textContent = formatTokens(usage?.outputTokens || 0)
   root.querySelector('[data-value="cache"]').textContent = cacheHitRate(usage)
+  root.querySelector('[data-value="cost"]').textContent = usage?.costCny != null
+    ? `¥${Number(usage.costCny).toFixed(2)}`
+    : '—'
+}
+
+function renderUsageSeries(section, field, entries, labelOf) {
+  const root = section.querySelector(`[data-field="${field}"]`)
+  if (!root) return
+  root.replaceChildren()
+  if (!Array.isArray(entries) || entries.length === 0) {
+    const empty = document.createElement('p')
+    empty.textContent = '暂无数据'
+    root.appendChild(empty)
+    return
+  }
+  for (const entry of entries) {
+    const row = document.createElement('div')
+    row.className = 'dsh-series-row'
+    const label = document.createElement('span')
+    label.textContent = labelOf(entry)
+    const tokens = document.createElement('span')
+    tokens.textContent = entry.tokens > 0 ? formatTokens(entry.tokens) : '—'
+    const cost = document.createElement('span')
+    cost.textContent = `¥${Number(entry.costCny || 0).toFixed(2)}`
+    row.append(label, tokens, cost)
+    root.appendChild(row)
+  }
 }
 
 function balanceTone(balance) {
@@ -652,6 +699,8 @@ function renderUsageSnapshot(section, snapshot) {
   renderUsagePeriod(section, 'today', snapshot.usage?.today)
   renderUsagePeriod(section, 'month', snapshot.usage?.month)
   renderUsagePeriod(section, 'all', snapshot.usage?.all)
+  renderUsageSeries(section, 'series-days', snapshot.usage?.byDay, entry => entry.date)
+  renderUsageSeries(section, 'series-hours', snapshot.usage?.byHour, entry => entry.hour)
 
   const state = section.querySelector('[data-field="balance-state"]')
   state.textContent = balanceStateText(snapshot.balance)
@@ -741,6 +790,7 @@ function usagePeriodCard(id, label) {
         <div class="dsh-usage-metric"><span>输入 Token</span><strong data-value="input">—</strong></div>
         <div class="dsh-usage-metric"><span>输出 Token</span><strong data-value="output">—</strong></div>
         <div class="dsh-usage-metric"><span>缓存命中</span><strong data-value="cache">—</strong></div>
+        <div class="dsh-usage-metric"><span>费用估算</span><strong data-value="cost">—</strong></div>
       </div>
     </div>`
 }
@@ -894,6 +944,23 @@ function createUsageSection() {
           <span class="dsh-balance-state" data-field="balance-state" data-tone="muted">正在读取…</span>
         </div>
         <div class="dsh-balance-list" data-field="balance-list"><p>正在连接余额接口…</p></div>
+      </div>
+      <div class="dsh-usage-card dsh-usage-series">
+        <div class="dsh-balance-title">
+          <span>不同时段费用（估算）</span>
+          <span class="dsh-balance-state" data-tone="muted">官方单价 × 本机用量</span>
+        </div>
+        <div class="dsh-series-columns">
+          <div>
+            <div class="dsh-series-head">近 7 天</div>
+            <div data-field="series-days"></div>
+          </div>
+          <div>
+            <div class="dsh-series-head">近 24 小时</div>
+            <div data-field="series-hours"></div>
+          </div>
+        </div>
+        <div class="dsh-series-note">费用按官方页面单价估算（区分高峰/空闲时段）；模型不在价格表内的请求未计入。</div>
       </div>
       <div class="dsh-usage-footnote" data-field="footnote">用量仅统计已保存在本机的会话；删除或迁移的会话不会包含在内。</div>
     </div>
@@ -1120,9 +1187,36 @@ function queueSync() {
   queueMicrotask(syncSettingsUpdateSections)
 }
 
+function isHarnessPage() {
+  return window.location.protocol === 'http:'
+    && (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost')
+}
+
+function mutationTouchesSettingsDialog(mutations) {
+  for (const mutation of mutations) {
+    const target = mutation.target instanceof Element ? mutation.target : null
+    if (target?.matches('[role="dialog"]') || target?.closest('[role="dialog"]')) return true
+    for (const node of mutation.addedNodes) {
+      if (!(node instanceof Element)) continue
+      if (node.matches('[role="dialog"]') || node.querySelector('[role="dialog"]')) return true
+    }
+  }
+  return false
+}
+
 function start() {
+  // preload 同样会运行在本地 data: 启动页。只在真正的 Harness 本地页面
+  // 挂载设置、余额查询和提示，避免启动页提前出现余额警告并制造“反复刷新”错觉。
+  if (!isHarnessPage()) return
   syncSettingsUpdateSections()
-  new MutationObserver(queueSync).observe(document.documentElement, { childList: true, subtree: true })
+  new MutationObserver((mutations) => {
+    if (mutationTouchesSettingsDialog(mutations)) queueSync()
+  }).observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['role'],
+  })
   void checkLowBalanceWarning()
 }
 
