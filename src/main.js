@@ -114,11 +114,6 @@ function resolveDesktopRuntime() {
   if (distribution.isolatedDshHome === true) {
     resolved.dshHome = path.join(userDataPath, 'dsh-home')
     ensureIsolatedDshHome(resolved.dshHome)
-  } else {
-    // 非隔离发行：直接使用当前用户的 DSH 主目录（凭据/会话/插件全继承），
-    // 只做 bundle 名单合并播种（追加缺失的内置插件，不覆盖用户已有配置）。
-    const home = process.env.DSH_HOME || path.join(os.homedir(), '.dsh')
-    seedBundledProfile(home)
   }
   return resolved
 }

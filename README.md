@@ -14,12 +14,12 @@ This project is not an official DeepSeek product and is not maintained or endors
 
 | Platform | Download | Notes |
 | --- | --- | --- |
-| Windows 10/11 x64 | [DeepSeek Harness Desktop 1.1.5](https://github.com/Dr1empty/deepseek-harness-desktop/releases) | NSIS Setup with Node.js and Harness included; no development environment required |
+| Windows 10/11 x64 | [DeepSeek Harness Desktop 1.1.6](https://github.com/Dr1empty/deepseek-harness-desktop/releases) | NSIS Setup with Node.js and Harness included; no development environment required |
 
-The installer is not commercially code-signed, so Windows may display an “Unknown publisher” warning. Download `SHA256SUMS.txt` from the same Release or verify the 1.1.5 Setup hash:
+The installer is not commercially code-signed, so Windows may display an “Unknown publisher” warning. Download `SHA256SUMS.txt` from the same Release or verify the 1.1.6 Setup hash:
 
 ```text
-85EB523F520D772A91823AA421A1DC3318C1C4873A6F5C179C33D4A614E1DF81
+44A4FFAC1CDE32B88797784F6720233C1B108A0A0D2F0D8B8FD423C90D211064
 ```
 
 ## Why this Desktop exists
@@ -90,6 +90,8 @@ In one maintainer-machine verification, the repeated profile audit fell from app
 - Aggregates requests and tokens for today, the current month, and all retained history from local session events.
 - Tracks input, output, cache-read, cache-write, and reasoning tokens.
 - Deduplicates forked-session request records to avoid double counting.
+- Shows the last seven days as a compact usage chart and aggregates the last 24 hours into peak/off-peak pricing bands instead of refreshing every hourly slot.
+- Estimates covered model costs from the official CNY pricing table and keeps the balance-first settings layout readable without scrollbars.
 - Queries the official DeepSeek balance using the current DeepSeek credential.
 - Shows a low-balance warning and clears the stale warning after a successful balance refresh.
 - Treats local usage as an estimate over sessions still present on the machine, not as an official bill.
@@ -101,6 +103,7 @@ In one maintainer-machine verification, the repeated profile audit fell from app
 - Creates the QR code locally from the official DeepSeek payment-order URL; no third-party QR service is used.
 - Polls payment status in the background and refreshes the balance after payment succeeds.
 - Shows a controlled login window only when authentication is actually required and keeps top-up-page redirects hidden.
+- Encrypts the platform login token with Electron `safeStorage`, restores it after restart, and removes it automatically when invalid.
 
 Orders, balances, and pricing are determined by the DeepSeek Open Platform response. This project does not collect payments, store bank-card information, or provide a third-party top-up channel.
 
@@ -113,7 +116,7 @@ Orders, balances, and pricing are determined by the DeepSeek Open Platform respo
 
 ## Plugin boundary
 
-Desktop 1.1.5 does not preinstall third-party add-on plugins. The following components are not included in the Git repository, Setup, or isolated Desktop profile:
+Desktop 1.1.6 does not preinstall third-party add-on plugins. The following components are not included in the Git repository, Setup, or isolated Desktop profile:
 
 - `dsh-client-liang-intensity-skin`
 - `@dsh-external/dsh-super-injector` / routing-suite
@@ -219,9 +222,9 @@ electron-builder-desktop*.yml   Windows directory and NSIS build configuration
 
 ## Validation status
 
-Desktop 1.1.5 has passed:
+Desktop 1.1.6 has passed:
 
-- 23 Node unit tests;
+- 27 Node unit tests;
 - a real Windows x64 NSIS Setup build;
 - packaged backend-start and page-load smoke testing;
 - a local startup regression with four external plugins in the maintainer profile;
@@ -240,6 +243,6 @@ Desktop 1.1.5 has passed:
 - Upstream: [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness)
 - This fork: [Dr1empty/deepseek-harness-desktop](https://github.com/Dr1empty/deepseek-harness-desktop)
 - Desktop source: [repository root](https://github.com/Dr1empty/deepseek-harness-desktop)
-- Desktop Release: [v1.1.5-desktop](https://github.com/Dr1empty/deepseek-harness-desktop/releases/tag/v1.1.5-desktop)
+- Desktop Release: [v1.1.6-desktop](https://github.com/Dr1empty/deepseek-harness-desktop/releases/tag/v1.1.6-desktop)
 
 Upstream Harness code and trademarks remain subject to upstream licenses and policies. Desktop-owned code is released under the [MIT License](LICENSE). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for third-party notices and [CHANGELOG.md](CHANGELOG.md) for version history.

@@ -14,12 +14,12 @@ DeepSeek Harness Desktop 是集成在 [deepseek-ai/deepseek-harness](https://git
 
 | 平台 | 安装包 | 说明 |
 | --- | --- | --- |
-| Windows 10/11 x64 | [DeepSeek Harness Desktop 1.1.5](https://github.com/Dr1empty/deepseek-harness-desktop/releases) | NSIS Setup，内含 Node.js 和 Harness，不要求预装开发环境 |
+| Windows 10/11 x64 | [DeepSeek Harness Desktop 1.1.6](https://github.com/Dr1empty/deepseek-harness-desktop/releases) | NSIS Setup，内含 Node.js 和 Harness，不要求预装开发环境 |
 
-安装包尚未进行商业代码签名，Windows 可能显示“未知发布者”。请从 Release 同时下载 `SHA256SUMS.txt`，或核对 1.1.5 Setup 的 SHA-256：
+安装包尚未进行商业代码签名，Windows 可能显示“未知发布者”。请从 Release 同时下载 `SHA256SUMS.txt`，或核对 1.1.6 Setup 的 SHA-256：
 
 ```text
-85EB523F520D772A91823AA421A1DC3318C1C4873A6F5C179C33D4A614E1DF81
+44A4FFAC1CDE32B88797784F6720233C1B108A0A0D2F0D8B8FD423C90D211064
 ```
 
 ## 为什么做这个 Desktop
@@ -90,6 +90,8 @@ DeepSeek Harness Desktop 是集成在 [deepseek-ai/deepseek-harness](https://git
 - 从本地会话事件中汇总今日、本月和累计请求/token。
 - 统计输入、输出、缓存读取、缓存写入和推理 token。
 - 对分叉会话进行请求去重，避免同一条 usage 被重复累计。
+- 近 7 天使用紧凑条形图展示；近 24 小时只汇总高峰/空闲计价时段，不再逐小时刷新。
+- 按官方人民币单价估算已覆盖模型的费用，余额置顶并放大整体文字，同时保持设置页无滚动条。
 - 使用当前 DeepSeek 凭据查询官方余额，并显示余额是否可用。
 - 余额不足时显示桌面提醒；刷新后余额恢复，旧警告会同步消失。
 - 本地统计只覆盖仍保存在本机的会话，不等同于官方账单。
@@ -101,6 +103,7 @@ DeepSeek Harness Desktop 是集成在 [deepseek-ai/deepseek-harness](https://git
 - 二维码在本地从 DeepSeek 官方订单 URL 生成，不经过第三方二维码服务。
 - 付款状态在后台轮询，支付成功后刷新余额。
 - 只有确实需要重新认证时才显示受控登录窗口；充值网页跳转会保持隐藏。
+- 使用 Electron `safeStorage` 加密保存平台登录令牌，重启后自动恢复；令牌失效时自动清除。
 
 支付订单、余额与价格以 DeepSeek 开放平台实际返回为准。本项目不代收款、不保存银行卡信息，也不提供第三方充值渠道。
 
@@ -113,7 +116,7 @@ DeepSeek Harness Desktop 是集成在 [deepseek-ai/deepseek-harness](https://git
 
 ## 插件边界
 
-Desktop 1.1.5 不预装任何第三方外加插件。以下组件不会进入 Git 仓库、Setup 或独立 Desktop profile：
+Desktop 1.1.6 不预装任何第三方外加插件。以下组件不会进入 Git 仓库、Setup 或独立 Desktop profile：
 
 - `dsh-client-liang-intensity-skin`
 - `@dsh-external/dsh-super-injector` / routing-suite
@@ -219,9 +222,9 @@ electron-builder-desktop*.yml   Windows 目录包和 NSIS 配置
 
 ## 验证状态
 
-Desktop 1.1.5 已完成：
+Desktop 1.1.6 已完成：
 
-- 23 项 Node 单元测试；
+- 27 项 Node 单元测试；
 - Windows x64 真实 NSIS Setup 构建；
 - 打包态后端启动与页面加载冒烟测试；
 - 本机带四个外部插件的 profile 启动回归；
@@ -240,6 +243,6 @@ Desktop 1.1.5 已完成：
 - 上游项目：[deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness)
 - 本 Fork：[Dr1empty/deepseek-harness-desktop](https://github.com/Dr1empty/deepseek-harness-desktop)
 - Desktop 源码：[仓库主页](https://github.com/Dr1empty/deepseek-harness-desktop)
-- Desktop Release：[v1.1.5-desktop](https://github.com/Dr1empty/deepseek-harness-desktop/releases/tag/v1.1.5-desktop)
+- Desktop Release：[v1.1.6-desktop](https://github.com/Dr1empty/deepseek-harness-desktop/releases/tag/v1.1.6-desktop)
 
 上游 Harness 的代码和商标遵循其自身许可与政策；Desktop 自有代码按 [MIT License](LICENSE) 发布。第三方组件声明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)，版本变化见 [CHANGELOG.md](CHANGELOG.md)。
