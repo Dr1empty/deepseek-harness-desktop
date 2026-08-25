@@ -1,6 +1,6 @@
 'use strict'
 
-const { app, BrowserWindow, dialog, ipcMain, session, shell } = require('electron')
+const { app, BrowserWindow, dialog, ipcMain, safeStorage, session, shell } = require('electron')
 const path = require('node:path')
 const fs = require('node:fs')
 const os = require('node:os')
@@ -114,6 +114,11 @@ function resolveDesktopRuntime() {
   if (distribution.isolatedDshHome === true) {
     resolved.dshHome = path.join(userDataPath, 'dsh-home')
     ensureIsolatedDshHome(resolved.dshHome)
+  } else {
+    // 非隔离发行：直接使用当前用户的 DSH 主目录（凭据/会话/插件全继承），
+    // 只做 bundle 名单合并播种（追加缺失的内置插件，不覆盖用户已有配置）。
+    const home = process.env.DSH_HOME || path.join(os.homedir(), '.dsh')
+    seedBundledProfile(home)
   }
   return resolved
 }
@@ -160,7 +165,7 @@ function createWindow() {
     height: 800,
     minWidth: 800,
     minHeight: 600,
-    title: 'DeepSeek Harness Desktop',
+    title: 'DeepSeek Harness',
     icon: path.join(__dirname, '..', 'assets', 'icon.ico'),
     backgroundColor: '#151515',
     autoHideMenuBar: true,
@@ -232,6 +237,8 @@ async function boot() {
     shell,
     log,
     parentWindow: () => win,
+    safeStorage,
+    userDataPath: app.getPath('userData'),
   })
   const userDataPath = app.getPath('userData')
   const dshHome = runtime.dshHome || process.env.DSH_HOME || path.join(os.homedir(), '.dsh')

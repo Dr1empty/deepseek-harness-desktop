@@ -1,6 +1,8 @@
 'use strict'
 
 const crypto = require('node:crypto')
+const fs = require('node:fs')
+const path = require('node:path')
 const qrcode = require('qrcode-generator')
 
 const PLATFORM_ORIGIN = 'https://platform.deepseek.com'
@@ -151,6 +153,46 @@ class DeepSeekPaymentService {
     this.syncLoginWindowVisibility = null
     this.interactiveLoginRequested = false
     this.initialized = false
+    this.safeStorage = options.safeStorage || null
+    this.tokenPath = typeof options.userDataPath === 'string' && options.userDataPath !== ''
+      ? path.join(options.userDataPath, 'payment-platform-token.bin')
+      : null
+  }
+
+  /**
+   * 平台令牌持久化（Windows DPAPI 加密，仅本机本账户可解）：
+   * 首次网页登录成功后写入 userData；之后每次启动自动恢复登录并异步校验，
+   * 无需再打开网页静默重登窗口。重装（userData 保留）或重启后依然有效，
+   * 令牌失效时自动清除并回退到既有登录流程。API Key 无法签发支付令牌，
+   * 所以换新机器仍需一次网页登录——这是平台接口的边界。
+   */
+  loadPersistedToken() {
+    try {
+      if (!this.safeStorage || typeof this.safeStorage.isEncryptionAvailable !== 'function'
+        || !this.safeStorage.isEncryptionAvailable() || !this.tokenPath) return null
+      const token = this.safeStorage.decryptString(fs.readFileSync(this.tokenPath))
+      return typeof token === 'string' && token.length > 0 && token.length <= 16384 ? token : null
+    } catch (_) {
+      return null
+    }
+  }
+
+  persistToken(token) {
+    try {
+      if (!this.safeStorage || typeof this.safeStorage.isEncryptionAvailable !== 'function'
+        || !this.safeStorage.isEncryptionAvailable() || !this.tokenPath) return
+      if (typeof token !== 'string' || token.length === 0 || token.length > 16384) return
+      fs.mkdirSync(path.dirname(this.tokenPath), { recursive: true })
+      fs.writeFileSync(this.tokenPath, this.safeStorage.encryptString(token))
+    } catch (error) {
+      this.log('平台令牌持久化失败:', error && error.message ? error.message : String(error))
+    }
+  }
+
+  clearPersistedToken() {
+    try {
+      if (this.tokenPath && fs.existsSync(this.tokenPath)) fs.rmSync(this.tokenPath, { force: true })
+    } catch (_) {}
   }
 
   initialize() {
@@ -172,6 +214,9 @@ class DeepSeekPaymentService {
         }
       },
     )
+    // 启动即尝试恢复上次登录：校验异步进行，无效会自动清除并走既有流程。
+    const persisted = this.loadPersistedToken()
+    if (persisted) this.considerToken(persisted)
   }
 
   async fetchJson(url, init = {}, token = this.platformToken) {
@@ -207,8 +252,10 @@ class DeepSeekPaymentService {
         if (this.platformToken !== token) return false
         this.authenticated = valid
         if (valid) {
+          this.persistToken(token)
           this.resolveAuthWaiters()
         } else {
+          this.clearPersistedToken()
           this.platformToken = null
           if (this.interactiveLoginRequested) this.showInteractiveLogin()
           else this.failSilentAuthentication()
@@ -217,6 +264,7 @@ class DeepSeekPaymentService {
       })
       .catch(() => {
         if (this.platformToken === token) {
+          this.clearPersistedToken()
           this.platformToken = null
           this.authenticated = false
           if (this.interactiveLoginRequested) this.showInteractiveLogin()

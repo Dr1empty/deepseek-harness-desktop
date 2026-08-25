@@ -14,7 +14,7 @@ const wiredNativeButtons = new WeakSet()
 let syncQueued = false
 let cachedVersions = { desktopVersion: null, currentVersion: null, desktopUpdateSupported: true }
 let cachedStatus = {
-  desktop: { text: '尚未检查 Desktop 更新', tone: 'muted' },
+  desktop: { text: '尚未检查应用更新', tone: 'muted' },
   kernel: { text: '尚未检查内核更新', tone: 'muted' },
 }
 let cachedBalance = null
@@ -89,26 +89,26 @@ function installStyles() {
     #${UPDATE_SECTION_ID} button.primary { border-color: #2563eb; background: #2563eb; color: white; }
     #${UPDATE_SECTION_ID} button:disabled { opacity: .55; cursor: wait; filter: none; }
     #${USAGE_SECTION_ID} {
-      flex: 1; min-height: 0; overflow-y: auto; box-sizing: border-box;
-      padding: 0 24px 24px; color: var(--dsw-alias-label-primary, #e7e9ed);
+      container: dsh-usage-page / inline-size; flex: 1; min-height: 0; overflow-y: auto; box-sizing: border-box;
+      padding: 0 16px 6px; color: var(--dsw-alias-label-primary, #e7e9ed);
       font-family: inherit;
     }
     #${USAGE_SECTION_ID}[hidden] { display: none; }
     #${USAGE_SECTION_ID} .dsh-usage-heading {
       display: flex; align-items: flex-start; justify-content: space-between;
-      gap: 20px; padding: 8px 0 20px;
+      gap: 12px; padding: 4px 0 10px;
     }
-    #${USAGE_SECTION_ID} h2 { margin: 0 0 7px; font-size: 20px; line-height: 28px; font-weight: 600; }
+    #${USAGE_SECTION_ID} h2 { margin: 0 0 2px; font-size: 18px; line-height: 24px; font-weight: 600; }
     #${USAGE_SECTION_ID} p {
       margin: 0; color: var(--dsw-alias-label-secondary, #a7abb4);
-      font-size: 13px; line-height: 20px;
+      font-size: 11px; line-height: 16px;
     }
     #${USAGE_SECTION_ID} button {
-      flex: none; min-height: 36px; padding: 7px 14px; border-radius: 10px;
+      flex: none; min-height: 30px; padding: 4px 10px; border-radius: 8px;
       border: 1px solid var(--dsw-alias-stroke-secondary, rgba(255,255,255,.16));
       color: var(--dsw-alias-label-primary, #eef4ff);
       background: var(--dsw-alias-bg-layer-1, #3a3b3f); cursor: pointer;
-      font: 13px/20px inherit;
+      font: 11px/18px inherit;
     }
     #${USAGE_SECTION_ID} button:hover { filter: brightness(1.08); }
     #${USAGE_SECTION_ID} button:disabled { opacity: .55; cursor: wait; filter: none; }
@@ -118,17 +118,17 @@ function installStyles() {
       flex-wrap: wrap;
     }
     #${USAGE_SECTION_ID} .dsh-refresh-result {
-      max-width: 330px; color: var(--dsw-alias-label-secondary, #a7abb4);
-      font-size: 12px; line-height: 18px; text-align: right;
+      max-width: 230px; color: var(--dsw-alias-label-secondary, #a7abb4);
+      font-size: 10px; line-height: 15px; text-align: right;
     }
     #${USAGE_SECTION_ID} .dsh-refresh-result[data-tone="success"] { color: #4ade80; }
     #${USAGE_SECTION_ID} .dsh-refresh-result[data-tone="error"] { color: #f87171; }
     #${USAGE_SECTION_ID} .dsh-usage-tabs {
-      display: inline-flex; gap: 4px; margin: -4px 0 16px; padding: 4px;
-      border-radius: 11px; background: var(--dsw-alias-bg-layer-1, rgba(128,138,152,.1));
+      display: inline-flex; gap: 3px; margin: 0 0 8px; padding: 3px;
+      border-radius: 9px; background: var(--dsw-alias-bg-layer-1, rgba(128,138,152,.1));
     }
     #${USAGE_SECTION_ID} .dsh-usage-tabs button {
-      min-height: 32px; padding: 5px 13px; border-color: transparent; background: transparent;
+      min-height: 26px; padding: 3px 10px; border-color: transparent; background: transparent;
     }
     #${USAGE_SECTION_ID} .dsh-usage-tabs button[aria-selected="true"] {
       background: var(--dsw-specific-sidebar-nav-item-active, rgba(128,138,152,.24));
@@ -199,76 +199,204 @@ function installStyles() {
       background: rgba(128,138,152,.08);
     }
     #${USAGE_SECTION_ID} .dsh-usage-grid {
-      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;
+      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;
     }
     #${USAGE_SECTION_ID} .dsh-usage-card {
-      padding: 16px; border: 1px solid var(--dsw-alias-stroke-secondary, rgba(128,138,152,.24));
-      border-radius: 14px; background: var(--dsw-alias-bg-layer-1, rgba(128,138,152,.08));
+      padding: 10px; border: 1px solid var(--dsw-alias-stroke-secondary, rgba(128,138,152,.24));
+      border-radius: 11px; background: var(--dsw-alias-bg-layer-1, rgba(128,138,152,.08));
     }
     #${USAGE_SECTION_ID} .dsh-usage-period {
-      color: var(--dsw-alias-label-secondary, #a7abb4); font-size: 12px; line-height: 18px;
+      color: var(--dsw-alias-label-secondary, #a7abb4); font-size: 12px; line-height: 14px;
     }
     #${USAGE_SECTION_ID} .dsh-usage-total {
-      margin: 5px 0 14px; font-size: 22px; line-height: 30px; font-weight: 600;
+      margin: 2px 0 7px; font-size: 18px; line-height: 23px; font-weight: 600;
       font-variant-numeric: tabular-nums;
     }
-    #${USAGE_SECTION_ID} .dsh-usage-metrics { display: grid; gap: 7px; }
+    #${USAGE_SECTION_ID} .dsh-usage-total small { font-size: 11px; font-weight: 500; }
+    #${USAGE_SECTION_ID} .dsh-usage-metrics {
+      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px;
+    }
     #${USAGE_SECTION_ID} .dsh-usage-metric {
-      display: flex; justify-content: space-between; gap: 10px;
-      color: var(--dsw-alias-label-secondary, #a7abb4); font-size: 12px; line-height: 18px;
+      display: block; min-width: 0; color: var(--dsw-alias-label-secondary, #a7abb4);
+      font-size: 11px; line-height: 12px;
     }
     #${USAGE_SECTION_ID} .dsh-usage-metric strong {
-      color: var(--dsw-alias-label-primary, #e7e9ed); font-weight: 500; font-variant-numeric: tabular-nums;
+      display: block; overflow: hidden; margin-top: 1px; color: var(--dsw-alias-label-primary, #e7e9ed);
+      font-size: 12px; line-height: 14px; font-weight: 500; font-variant-numeric: tabular-nums;
+      text-overflow: ellipsis; white-space: nowrap;
     }
-    #${USAGE_SECTION_ID} .dsh-balance-card { margin-top: 12px; }
-    #${USAGE_SECTION_ID} .dsh-usage-series { margin-top: 12px; }
+    #${USAGE_SECTION_ID} .dsh-balance-card {
+      position: relative; overflow: hidden; margin-bottom: 8px; padding: 8px 12px;
+      border-color: rgba(78,125,255,.34);
+      background: linear-gradient(135deg, rgba(78,125,255,.13), rgba(128,138,152,.07) 58%);
+    }
+    #${USAGE_SECTION_ID} .dsh-balance-card::before {
+      content: ''; position: absolute; inset: 0 auto 0 0; width: 3px; background: #4e7dff;
+    }
+    #${USAGE_SECTION_ID} .dsh-usage-series {
+      container: dsh-usage-series / inline-size; margin-top: 8px;
+    }
     #${USAGE_SECTION_ID} .dsh-series-columns {
-      display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px;
+      display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
     }
-    #${USAGE_SECTION_ID} .dsh-series-head {
-      color: var(--dsw-alias-label-secondary, #a7abb4); font-size: 12px; line-height: 18px; margin-bottom: 6px;
+    #${USAGE_SECTION_ID} .dsh-series-panel {
+      display: flex; min-width: 0; padding: 9px; flex-direction: column;
+      border: 1px solid var(--dsw-alias-stroke-secondary, rgba(128,138,152,.18));
+      border-radius: 9px; background: rgba(128,138,152,.055);
     }
+    #${USAGE_SECTION_ID} .dsh-series-panel-head {
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+      min-height: 32px; margin-bottom: 6px;
+    }
+    #${USAGE_SECTION_ID} .dsh-series-panel-title h3 {
+      margin: 0; font-size: 13px; line-height: 17px; font-weight: 500;
+    }
+    #${USAGE_SECTION_ID} .dsh-series-panel-title span {
+      display: block; margin-top: 1px; color: var(--dsw-alias-label-secondary, #a7abb4);
+      font-size: 11px; line-height: 13px;
+    }
+    #${USAGE_SECTION_ID} .dsh-series-total {
+      min-width: 60px; text-align: right; font-variant-numeric: tabular-nums;
+    }
+    #${USAGE_SECTION_ID} .dsh-series-total strong {
+      display: block; font-size: 13px; line-height: 17px; font-weight: 600;
+    }
+    #${USAGE_SECTION_ID} .dsh-series-total span {
+      display: block; color: var(--dsw-alias-label-secondary, #a7abb4); font-size: 10px; line-height: 12px;
+    }
+    #${USAGE_SECTION_ID} .dsh-series-table-head {
+      display: grid; grid-template-columns: 44px minmax(66px, 1fr) 56px; gap: 6px;
+      padding: 0 3px 3px; color: var(--dsw-alias-label-secondary, #a7abb4);
+      font-size: 10px; line-height: 12px;
+    }
+    #${USAGE_SECTION_ID} .dsh-series-table-head span:nth-child(n+2) { text-align: right; }
+    #${USAGE_SECTION_ID} .dsh-series-list { display: grid; gap: 2px; }
     #${USAGE_SECTION_ID} .dsh-series-row {
-      display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; align-items: center;
-      padding: 2.5px 0; font-size: 12px; line-height: 18px; font-variant-numeric: tabular-nums;
-      color: var(--dsw-alias-label-primary, #e7e9ed);
+      display: grid; grid-template-columns: 44px minmax(66px, 1fr) 56px; gap: 6px; align-items: center;
+      min-height: 22px; padding: 1px 3px; border-radius: 6px; box-sizing: border-box;
+      color: var(--dsw-alias-label-primary, #e7e9ed); font-size: 11px; line-height: 14px;
+      font-variant-numeric: tabular-nums;
     }
-    #${USAGE_SECTION_ID} .dsh-series-row span:nth-child(2) {
-      color: var(--dsw-alias-label-secondary, #a7abb4); text-align: right;
+    #${USAGE_SECTION_ID} .dsh-series-row:hover { background: rgba(128,138,152,.08); }
+    #${USAGE_SECTION_ID} .dsh-series-row[data-empty="true"] { color: var(--dsw-alias-label-secondary, #8d929b); }
+    #${USAGE_SECTION_ID} .dsh-series-meter {
+      position: relative; height: 16px; overflow: hidden; border-radius: 5px;
+      background: rgba(128,138,152,.08); text-align: right;
     }
-    #${USAGE_SECTION_ID} .dsh-series-row span:nth-child(3) { text-align: right; min-width: 68px; }
+    #${USAGE_SECTION_ID} .dsh-series-meter-fill {
+      position: absolute; inset: 0 auto 0 0; width: var(--dsh-series-level, 0%);
+      border-radius: inherit; background: linear-gradient(90deg, rgba(79,140,255,.12), rgba(79,140,255,.32));
+    }
+    #${USAGE_SECTION_ID} .dsh-series-meter-value {
+      position: relative; z-index: 1; display: block; padding: 1px 4px;
+      color: var(--dsw-alias-label-secondary, #a7abb4);
+    }
+    #${USAGE_SECTION_ID} .dsh-series-cost { text-align: right; }
+    #${USAGE_SECTION_ID} .dsh-price-band-list {
+      display: grid; min-height: 0; flex: 1; grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 6px;
+    }
+    #${USAGE_SECTION_ID} .dsh-price-band {
+      --dsh-band-color: #60a5fa; --dsh-band-bg: rgba(96,165,250,.08);
+      min-width: 0; padding: 8px; border: 1px solid rgba(128,138,152,.14);
+      border-left: 3px solid var(--dsh-band-color); border-radius: 8px;
+      background: linear-gradient(115deg, var(--dsh-band-bg), rgba(128,138,152,.025));
+      font-variant-numeric: tabular-nums;
+    }
+    #${USAGE_SECTION_ID} .dsh-price-band[data-band="peak"] {
+      --dsh-band-color: #f59e0b; --dsh-band-bg: rgba(245,158,11,.09);
+    }
+    #${USAGE_SECTION_ID} .dsh-price-band-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    }
+    #${USAGE_SECTION_ID} .dsh-price-band-name {
+      display: flex; min-width: 0; align-items: center; gap: 6px;
+      font-size: 12px; line-height: 15px; font-weight: 500;
+    }
+    #${USAGE_SECTION_ID} .dsh-price-band-name::before {
+      content: ''; width: 7px; height: 7px; flex: none; border-radius: 999px;
+      background: var(--dsh-band-color); box-shadow: 0 0 0 3px var(--dsh-band-bg);
+    }
+    #${USAGE_SECTION_ID} .dsh-price-band-cost { font-size: 12px; line-height: 15px; font-weight: 600; }
+    #${USAGE_SECTION_ID} .dsh-price-band-schedule {
+      min-height: 12px; margin: 1px 0 6px; color: var(--dsw-alias-label-secondary, #a7abb4);
+      font-size: 10px; line-height: 12px;
+    }
+    #${USAGE_SECTION_ID} .dsh-price-band-meter {
+      height: 4px; overflow: hidden; border-radius: 999px; background: rgba(128,138,152,.12);
+    }
+    #${USAGE_SECTION_ID} .dsh-price-band-meter span {
+      display: block; width: var(--dsh-band-level, 0%); height: 100%; border-radius: inherit;
+      background: var(--dsh-band-color); opacity: .72;
+    }
+    #${USAGE_SECTION_ID} .dsh-price-band-stats {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      margin-top: 5px; color: var(--dsw-alias-label-secondary, #a7abb4); font-size: 10px; line-height: 12px;
+    }
+    #${USAGE_SECTION_ID} .dsh-price-band-stats strong {
+      color: var(--dsw-alias-label-primary, #e7e9ed); font-size: 11px; font-weight: 500;
+    }
+    #${USAGE_SECTION_ID} .dsh-series-empty {
+      display: grid; min-height: 124px; place-content: center; gap: 6px; text-align: center;
+      border: 1px dashed rgba(128,138,152,.18); border-radius: 9px;
+      color: var(--dsw-alias-label-secondary, #8d929b); font-size: 11px; line-height: 17px;
+    }
+    #${USAGE_SECTION_ID} .dsh-series-empty::before {
+      content: ''; width: 22px; height: 14px; margin: auto;
+      border-bottom: 2px solid rgba(128,138,152,.34);
+      background: linear-gradient(135deg, transparent 42%, rgba(128,138,152,.28) 43% 51%, transparent 52%);
+    }
+    #${USAGE_SECTION_ID} .dsh-series-panel > [data-field="series-price-bands"] {
+      display: flex; min-height: 0; flex: 1; flex-direction: column;
+    }
+    #${USAGE_SECTION_ID} .dsh-series-panel > [data-field="series-price-bands"] .dsh-series-empty { flex: 1; }
     #${USAGE_SECTION_ID} .dsh-series-note {
-      margin-top: 10px; color: var(--dsw-alias-label-secondary, #a7abb4); font-size: 11px; line-height: 17px;
+      margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(128,138,152,.14);
+      color: var(--dsw-alias-label-secondary, #a7abb4); font-size: 10px; line-height: 12px;
     }
     #${USAGE_SECTION_ID} .dsh-balance-title {
       display: flex; align-items: center; justify-content: space-between; gap: 16px;
-      margin-bottom: 14px; font-size: 14px; font-weight: 500;
+      margin-bottom: 8px; font-size: 12px; font-weight: 500;
     }
+    #${USAGE_SECTION_ID} .dsh-balance-card .dsh-balance-title > span:first-child {
+      font-size: 13px; font-weight: 650;
+    }
+    #${USAGE_SECTION_ID} .dsh-balance-card .dsh-balance-title { margin-bottom: 4px; }
     #${USAGE_SECTION_ID} .dsh-balance-state {
-      padding: 3px 8px; border-radius: 999px; color: var(--dsw-alias-label-secondary, #a7abb4);
+      padding: 2px 6px; border-radius: 999px; color: var(--dsw-alias-label-secondary, #a7abb4);
       background: rgba(128,138,152,.14); font-size: 11px; font-weight: 400;
     }
     #${USAGE_SECTION_ID} .dsh-balance-state[data-tone="success"] { color: #4ade80; }
     #${USAGE_SECTION_ID} .dsh-balance-state[data-tone="error"] { color: #f87171; }
     #${USAGE_SECTION_ID} .dsh-balance-list { display: grid; gap: 10px; }
     #${USAGE_SECTION_ID} .dsh-balance-row {
-      display: grid; grid-template-columns: minmax(100px, 1fr) repeat(3, minmax(88px, auto));
-      gap: 18px; align-items: end; padding-top: 10px;
+      display: grid; grid-template-columns: minmax(54px, .8fr) repeat(3, minmax(58px, 1fr));
+      gap: 8px; align-items: end; padding-top: 6px;
       border-top: 1px solid var(--dsw-alias-stroke-secondary, rgba(128,138,152,.18));
     }
     #${USAGE_SECTION_ID} .dsh-balance-row:first-child { padding-top: 0; border-top: 0; }
     #${USAGE_SECTION_ID} .dsh-balance-cell { color: var(--dsw-alias-label-secondary, #a7abb4); font-size: 11px; }
     #${USAGE_SECTION_ID} .dsh-balance-cell strong {
-      display: block; margin-top: 3px; color: var(--dsw-alias-label-primary, #e7e9ed);
-      font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums;
+      display: block; margin-top: 1px; color: var(--dsw-alias-label-primary, #e7e9ed);
+      font-size: 15px; line-height: 17px; font-weight: 600; font-variant-numeric: tabular-nums;
+    }
+    #${USAGE_SECTION_ID} .dsh-balance-cell[data-balance-field="remaining"] {
+      color: #93b4ff;
+    }
+    #${USAGE_SECTION_ID} .dsh-balance-cell[data-balance-field="remaining"] strong {
+      color: #c7d7ff;
     }
     #${USAGE_SECTION_ID} .dsh-usage-footnote {
-      margin-top: 12px; color: var(--dsw-alias-label-secondary, #a7abb4); font-size: 11px; line-height: 17px;
+      margin-top: 3px; color: var(--dsw-alias-label-secondary, #a7abb4); font-size: 10px; line-height: 12px;
     }
-    @media (max-width: 980px) {
-      #${USAGE_SECTION_ID} .dsh-usage-grid { grid-template-columns: 1fr; }
+    @container dsh-usage-page (max-width: 390px) {
       #${USAGE_SECTION_ID} .dsh-balance-row { grid-template-columns: 1fr 1fr; }
+    }
+    @container dsh-usage-series (max-width: 430px) {
       #${USAGE_SECTION_ID} .dsh-series-columns { grid-template-columns: 1fr; }
+      #${USAGE_SECTION_ID} .dsh-series-empty { min-height: 94px; }
+    }
+    @container dsh-usage-series (max-width: 340px) {
+      #${USAGE_SECTION_ID} .dsh-balance-title { align-items: flex-start; flex-direction: column; gap: 7px; }
     }
     #${LOW_BALANCE_TOAST_ID} {
       position: fixed; right: 24px; bottom: 24px; z-index: 2147483000;
@@ -349,8 +477,8 @@ function updateSectionDisplay(section) {
   const kernelStatus = section.querySelector('[data-field="kernel-status"]')
   if (desktop) {
     desktop.textContent = cachedVersions.desktopVersion
-      ? `桌面版 ${cachedVersions.desktopVersion}`
-      : '桌面版'
+      ? `应用 ${cachedVersions.desktopVersion}`
+      : '应用'
   }
   if (desktopCardVersion) desktopCardVersion.textContent = cachedVersions.desktopVersion || '正在读取…'
   if (current) current.textContent = cachedVersions.currentVersion || '正在读取…'
@@ -437,14 +565,14 @@ function createUpdateSection() {
         <h2>软件更新</h2>
         <p>Desktop 外壳和 Harness 内核分别更新；安装完成后应用会自动重启。</p>
       </div>
-      <span class="dsh-update-desktop-version" data-field="desktop-version">桌面版</span>
+      <span class="dsh-update-desktop-version" data-field="desktop-version">应用</span>
     </div>
     <div class="dsh-update-card">
       <div class="dsh-update-row">
-        <span class="dsh-update-label">Desktop 应用版本</span>
+        <span class="dsh-update-label">应用版本</span>
         <span class="dsh-update-version" data-field="desktop-card-version">正在读取…</span>
       </div>
-      <div class="dsh-update-status" data-field="desktop-status" data-tone="muted" role="status" aria-live="polite">尚未检查 Desktop 更新</div>
+      <div class="dsh-update-status" data-field="desktop-status" data-tone="muted" role="status" aria-live="polite">尚未检查应用更新</div>
       <div class="dsh-update-actions">
         <button type="button" data-action="desktop-check">检查 Desktop</button>
         <button type="button" class="primary" data-action="desktop-install">更新 Desktop</button>
@@ -472,7 +600,7 @@ function createUpdateSection() {
       const info = result.value
       setStatus(section, 'desktop', info.updateAvailable
         ? `发现 Desktop ${info.latestVersion}，当前版本 ${info.currentVersion}`
-        : `Desktop 已是最新版本 ${info.currentVersion}`, info.updateAvailable ? 'success' : 'muted')
+        : `应用已是最新版本 ${info.currentVersion}`, info.updateAvailable ? 'success' : 'muted')
     } catch (error) {
       setStatus(section, 'desktop', `Desktop 检查失败：${error && error.message ? error.message : String(error)}`, 'error')
     } finally {
@@ -490,7 +618,7 @@ function createUpdateSection() {
       if (info.readyToInstall) {
         setStatus(section, 'desktop', `Desktop ${info.downloadedVersion} 已下载，正在安装并重启…`, 'success')
       } else {
-        setStatus(section, 'desktop', `Desktop 已是最新版本 ${info.currentVersion}`)
+        setStatus(section, 'desktop', `应用已是最新版本 ${info.currentVersion}`)
         setSectionBusy(section, 'desktop', false)
       }
     } catch (error) {
@@ -575,28 +703,136 @@ function renderUsagePeriod(section, name, usage) {
     : '—'
 }
 
-function renderUsageSeries(section, field, entries, labelOf) {
+function formatEstimatedCost(value, { zeroAsDash = false } = {}) {
+  const cost = Number(value) || 0
+  if (cost <= 0) return zeroAsDash ? '—' : '¥0.00'
+  return cost < 0.01 ? '<¥0.01' : `¥${cost.toFixed(2)}`
+}
+
+function seriesTotals(entries) {
+  return (Array.isArray(entries) ? entries : []).reduce((total, entry) => {
+    total.tokens += Number(entry?.tokens) || 0
+    total.costCny += Number(entry?.costCny) || 0
+    return total
+  }, { tokens: 0, costCny: 0 })
+}
+
+function renderSeriesTotal(section, field, entries) {
   const root = section.querySelector(`[data-field="${field}"]`)
   if (!root) return
+  const total = seriesTotals(entries)
   root.replaceChildren()
+  const cost = document.createElement('strong')
+  cost.textContent = formatEstimatedCost(total.costCny)
+  const tokens = document.createElement('span')
+  tokens.textContent = `${formatTokens(total.tokens)} tokens`
+  root.append(cost, tokens)
+}
+
+function renderDailySeries(section, entries) {
+  const root = section.querySelector('[data-field="series-days"]')
+  if (!root) return
+  root.replaceChildren()
+  renderSeriesTotal(section, 'series-days-total', entries)
   if (!Array.isArray(entries) || entries.length === 0) {
-    const empty = document.createElement('p')
-    empty.textContent = '暂无数据'
+    const empty = document.createElement('div')
+    empty.className = 'dsh-series-empty'
+    empty.textContent = '暂无每日用量'
     root.appendChild(empty)
     return
   }
+  const maxTokens = Math.max(...entries.map(entry => Number(entry?.tokens) || 0), 0)
   for (const entry of entries) {
+    const tokensValue = Number(entry?.tokens) || 0
     const row = document.createElement('div')
     row.className = 'dsh-series-row'
+    row.dataset.empty = tokensValue > 0 ? 'false' : 'true'
+    row.title = `${entry.date} · ${formatTokens(tokensValue)} tokens · 估算 ${formatEstimatedCost(entry.costCny)}`
+
     const label = document.createElement('span')
-    label.textContent = labelOf(entry)
+    label.textContent = entry.date
+    const meter = document.createElement('div')
+    meter.className = 'dsh-series-meter'
+    const fill = document.createElement('span')
+    fill.className = 'dsh-series-meter-fill'
+    fill.style.setProperty('--dsh-series-level', maxTokens > 0 && tokensValue > 0
+      ? `${Math.max(3, (tokensValue / maxTokens) * 100)}%`
+      : '0%')
     const tokens = document.createElement('span')
-    tokens.textContent = entry.tokens > 0 ? formatTokens(entry.tokens) : '—'
+    tokens.className = 'dsh-series-meter-value'
+    tokens.textContent = tokensValue > 0 ? formatTokens(tokensValue) : '—'
+    meter.append(fill, tokens)
     const cost = document.createElement('span')
-    cost.textContent = `¥${Number(entry.costCny || 0).toFixed(2)}`
-    row.append(label, tokens, cost)
+    cost.className = 'dsh-series-cost'
+    cost.textContent = formatEstimatedCost(entry.costCny, { zeroAsDash: tokensValue === 0 })
+    row.append(label, meter, cost)
     root.appendChild(row)
   }
+}
+
+function renderPriceBands(section, entries) {
+  const root = section.querySelector('[data-field="series-price-bands"]')
+  if (!root) return
+  root.replaceChildren()
+  renderSeriesTotal(section, 'series-price-bands-total', entries)
+  const values = Array.isArray(entries) ? entries : []
+  if (values.length === 0) {
+    const empty = document.createElement('div')
+    empty.className = 'dsh-series-empty'
+    empty.textContent = '暂无计价时段数据'
+    root.appendChild(empty)
+    return
+  }
+
+  const maxTokens = Math.max(...values.map(entry => Number(entry?.tokens) || 0), 0)
+  const list = document.createElement('div')
+  list.className = 'dsh-price-band-list'
+  for (const entry of values) {
+    const tokensValue = Number(entry?.tokens) || 0
+    const requests = Number(entry?.requests) || 0
+    const row = document.createElement('div')
+    row.className = 'dsh-price-band'
+    row.dataset.band = entry?.band === 'peak' ? 'peak' : 'off'
+    row.title = `${entry.label} · ${entry.schedule} · ${formatTokens(tokensValue)} tokens · ${requests} 次请求 · 估算 ${formatEstimatedCost(entry.costCny)}`
+    row.setAttribute('aria-label', row.title)
+
+    const head = document.createElement('div')
+    head.className = 'dsh-price-band-head'
+    const name = document.createElement('span')
+    name.className = 'dsh-price-band-name'
+    name.textContent = entry.label || (row.dataset.band === 'peak' ? '高峰时段' : '空闲时段')
+    const cost = document.createElement('span')
+    cost.className = 'dsh-price-band-cost'
+    cost.textContent = formatEstimatedCost(entry.costCny, { zeroAsDash: tokensValue === 0 })
+    head.append(name, cost)
+
+    const schedule = document.createElement('div')
+    schedule.className = 'dsh-price-band-schedule'
+    schedule.textContent = entry.schedule || '—'
+    const meter = document.createElement('div')
+    meter.className = 'dsh-price-band-meter'
+    const fill = document.createElement('span')
+    fill.style.setProperty('--dsh-band-level', maxTokens > 0 && tokensValue > 0
+      ? `${Math.max(3, (tokensValue / maxTokens) * 100)}%`
+      : '0%')
+    meter.appendChild(fill)
+    const stats = document.createElement('div')
+    stats.className = 'dsh-price-band-stats'
+    const tokens = document.createElement('span')
+    tokens.append('用量 ')
+    const tokensStrong = document.createElement('strong')
+    tokensStrong.textContent = tokensValue > 0 ? formatTokens(tokensValue) : '—'
+    tokens.appendChild(tokensStrong)
+    const requestCount = document.createElement('span')
+    requestCount.append('请求 ')
+    const requestsStrong = document.createElement('strong')
+    requestsStrong.textContent = integerFormatter.format(requests)
+    requestCount.appendChild(requestsStrong)
+    stats.append(tokens, requestCount)
+    row.append(head, schedule, meter, stats)
+    list.appendChild(row)
+  }
+  root.appendChild(list)
 }
 
 function balanceTone(balance) {
@@ -699,8 +935,8 @@ function renderUsageSnapshot(section, snapshot) {
   renderUsagePeriod(section, 'today', snapshot.usage?.today)
   renderUsagePeriod(section, 'month', snapshot.usage?.month)
   renderUsagePeriod(section, 'all', snapshot.usage?.all)
-  renderUsageSeries(section, 'series-days', snapshot.usage?.byDay, entry => entry.date)
-  renderUsageSeries(section, 'series-hours', snapshot.usage?.byHour, entry => entry.hour)
+  renderDailySeries(section, snapshot.usage?.byDay)
+  renderPriceBands(section, snapshot.usage?.byPriceBand)
 
   const state = section.querySelector('[data-field="balance-state"]')
   state.textContent = balanceStateText(snapshot.balance)
@@ -714,14 +950,15 @@ function renderUsageSnapshot(section, snapshot) {
       const row = document.createElement('div')
       row.className = 'dsh-balance-row'
       const values = [
-        ['币种', balance.currency || '—'],
-        ['剩余余额', balance.totalBalance || '—'],
-        ['充值余额', balance.toppedUpBalance || '—'],
-        ['赠送余额', balance.grantedBalance || '—'],
+        ['currency', '币种', balance.currency || '—'],
+        ['remaining', '剩余余额', balance.totalBalance || '—'],
+        ['topped-up', '充值余额', balance.toppedUpBalance || '—'],
+        ['granted', '赠送余额', balance.grantedBalance || '—'],
       ]
-      for (const [label, value] of values) {
+      for (const [key, label, value] of values) {
         const cell = document.createElement('div')
         cell.className = 'dsh-balance-cell'
+        cell.dataset.balanceField = key
         cell.append(label)
         const strong = document.createElement('strong')
         strong.textContent = value
@@ -784,13 +1021,13 @@ function usagePeriodCard(id, label) {
   return `
     <div class="dsh-usage-card" data-period="${id}">
       <div class="dsh-usage-period">${label}</div>
-      <div class="dsh-usage-total"><span data-value="total">—</span> <small>tokens</small></div>
+      <div class="dsh-usage-total"><span data-value="total">—</span> <small>Token</small></div>
       <div class="dsh-usage-metrics">
-        <div class="dsh-usage-metric"><span>API 请求</span><strong data-value="requests">—</strong></div>
-        <div class="dsh-usage-metric"><span>输入 Token</span><strong data-value="input">—</strong></div>
-        <div class="dsh-usage-metric"><span>输出 Token</span><strong data-value="output">—</strong></div>
-        <div class="dsh-usage-metric"><span>缓存命中</span><strong data-value="cache">—</strong></div>
-        <div class="dsh-usage-metric"><span>费用估算</span><strong data-value="cost">—</strong></div>
+        <div class="dsh-usage-metric"><span>请求</span><strong data-value="requests">—</strong></div>
+        <div class="dsh-usage-metric"><span>输入</span><strong data-value="input">—</strong></div>
+        <div class="dsh-usage-metric"><span>输出</span><strong data-value="output">—</strong></div>
+        <div class="dsh-usage-metric"><span>缓存</span><strong data-value="cache">—</strong></div>
+        <div class="dsh-usage-metric"><span>费用</span><strong data-value="cost">—</strong></div>
       </div>
     </div>`
 }
@@ -921,7 +1158,7 @@ function createUsageSection() {
     <div class="dsh-usage-heading">
       <div>
         <h2>使用情况</h2>
-        <p>汇总本机 Harness 会话中的模型用量，并从 DeepSeek 官方接口读取实时余额。</p>
+        <p>本机模型用量与 DeepSeek 账户余额。</p>
       </div>
       <div class="dsh-usage-actions">
         <span class="dsh-refresh-result" data-field="refresh-result" aria-live="polite"></span>
@@ -933,11 +1170,6 @@ function createUsageSection() {
       <button type="button" role="tab" aria-selected="false" data-pane-target="recharge" data-action="show-recharge">充值</button>
     </div>
     <div data-pane="usage">
-      <div class="dsh-usage-grid">
-        ${usagePeriodCard('today', '今日')}
-        ${usagePeriodCard('month', '本月')}
-        ${usagePeriodCard('all', '累计')}
-      </div>
       <div class="dsh-usage-card dsh-balance-card">
         <div class="dsh-balance-title">
           <span>DeepSeek 账户余额</span>
@@ -945,20 +1177,38 @@ function createUsageSection() {
         </div>
         <div class="dsh-balance-list" data-field="balance-list"><p>正在连接余额接口…</p></div>
       </div>
+      <div class="dsh-usage-grid">
+        ${usagePeriodCard('today', '今日')}
+        ${usagePeriodCard('month', '本月')}
+        ${usagePeriodCard('all', '累计')}
+      </div>
       <div class="dsh-usage-card dsh-usage-series">
         <div class="dsh-balance-title">
           <span>不同时段费用（估算）</span>
           <span class="dsh-balance-state" data-tone="muted">官方单价 × 本机用量</span>
         </div>
         <div class="dsh-series-columns">
-          <div>
-            <div class="dsh-series-head">近 7 天</div>
-            <div data-field="series-days"></div>
-          </div>
-          <div>
-            <div class="dsh-series-head">近 24 小时</div>
-            <div data-field="series-hours"></div>
-          </div>
+          <section class="dsh-series-panel" aria-labelledby="dsh-series-days-title">
+            <div class="dsh-series-panel-head">
+              <div class="dsh-series-panel-title">
+                <h3 id="dsh-series-days-title">近 7 天</h3>
+                <span>按自然日统计</span>
+              </div>
+              <div class="dsh-series-total" data-field="series-days-total"></div>
+            </div>
+            <div class="dsh-series-table-head" aria-hidden="true"><span>日期</span><span>用量</span><span>费用</span></div>
+            <div class="dsh-series-list" data-field="series-days"></div>
+          </section>
+          <section class="dsh-series-panel" aria-labelledby="dsh-series-price-bands-title">
+            <div class="dsh-series-panel-head">
+              <div class="dsh-series-panel-title">
+                <h3 id="dsh-series-price-bands-title">近 24 小时</h3>
+                <span>按计价时段汇总</span>
+              </div>
+              <div class="dsh-series-total" data-field="series-price-bands-total"></div>
+            </div>
+            <div data-field="series-price-bands"></div>
+          </section>
         </div>
         <div class="dsh-series-note">费用按官方页面单价估算（区分高峰/空闲时段）；模型不在价格表内的请求未计入。</div>
       </div>

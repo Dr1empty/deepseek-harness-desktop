@@ -9,6 +9,57 @@ const DEEPSEEK_TOP_UP_URL = 'https://platform.deepseek.com/top_up'
 const DEEPSEEK_PRICING_URL = 'https://api-docs.deepseek.com/zh-cn/quick_start/pricing'
 const LOW_BALANCE_THRESHOLD_CNY = 5
 
+/**
+ * 官方计费单价（元 / 百万 tokens），来自 api-docs.deepseek.com 价格页：
+ * 高峰时段（北京周一至周五 9:00-12:00、14:00-18:00）为 peak，
+ * 其余空闲时段为 off（高峰价的一半）。
+ */
+const PRICING_CNY_PER_1M = {
+  'deepseek-v4-flash': {
+    hit: { peak: 0.10, off: 0.05 },
+    miss: { peak: 3.0, off: 1.5 },
+    output: { peak: 9.0, off: 4.5 },
+  },
+  'deepseek-v4-pro': {
+    hit: { peak: 0.30, off: 0.15 },
+    miss: { peak: 9.0, off: 4.5 },
+    output: { peak: 27.0, off: 13.5 },
+  },
+  'deepseek-v4-flash-vision-exp': {
+    hit: { peak: 0.10, off: 0.05 },
+    miss: { peak: 3.0, off: 1.5 },
+    output: { peak: 9.0, off: 4.5 },
+  },
+}
+
+/** 该请求的北京时间时钟（周几 0=周日 / 小时），用于峰谷判定。 */
+function beijingClock(time) {
+  const date = new Date(time + 8 * 3600 * 1000)
+  return { day: date.getUTCDay(), hour: date.getUTCHours() }
+}
+
+/** 是否落在官方高峰计费时段（北京周一至周五 9-12 点、14-18 点）。 */
+function isPeakHour(time) {
+  const clock = beijingClock(time)
+  return clock.day >= 1 && clock.day <= 5
+    && ((clock.hour >= 9 && clock.hour < 12) || (clock.hour >= 14 && clock.hour < 18))
+}
+
+/**
+ * 单条请求的费用估算（元）。未知模型返回 null（不编造单价）。
+ * 缓存命中 = cacheReadTokens；未命中输入 = inputTokens - 命中；输出 = outputTokens。
+ */
+function recordCostCny(record) {
+  const pricing = record && record.model ? PRICING_CNY_PER_1M[record.model] : undefined
+  if (!pricing || !record.usage) return null
+  const band = isPeakHour(record.time) ? 'peak' : 'off'
+  const usage = record.usage
+  const hit = finiteNonNegative(usage.cacheReadTokens)
+  const miss = Math.max(0, finiteNonNegative(usage.inputTokens) - hit)
+  const output = finiteNonNegative(usage.outputTokens)
+  return (hit * pricing.hit[band] + miss * pricing.miss[band] + output * pricing.output[band]) / 1e6
+}
+
 function emptyUsage() {
   return {
     requests: 0,
@@ -31,6 +82,11 @@ function addUsage(target, usage) {
   target.cacheReadTokens += finiteNonNegative(usage.cacheReadTokens)
   target.cacheWriteTokens += finiteNonNegative(usage.cacheWriteTokens)
   target.reasoningTokens += finiteNonNegative(usage.reasoningTokens)
+}
+
+function addCost(target, costCny, covered) {
+  target.costCny = (target.costCny || 0) + costCny
+  target.costCovered = (target.costCovered || 0) + (covered ? 1 : 0)
 }
 
 function localDayKey(time) {
@@ -136,14 +192,102 @@ function aggregateUsage(records, now = Date.now()) {
   for (const record of records) {
     if (!record || seen.has(record.id)) continue
     seen.add(record.id)
+    const cost = recordCostCny(record)
     addUsage(all, record.usage)
-    if (localMonthKey(record.time) === monthKey) addUsage(month, record.usage)
-    if (localDayKey(record.time) === todayKey) addUsage(today, record.usage)
+    addCost(all, cost ?? 0, cost !== null)
+    if (localMonthKey(record.time) === monthKey) {
+      addUsage(month, record.usage)
+      addCost(month, cost ?? 0, cost !== null)
+    }
+    if (localDayKey(record.time) === todayKey) {
+      addUsage(today, record.usage)
+      addCost(today, cost ?? 0, cost !== null)
+    }
     const provider = record.provider || 'unknown'
     if (!byProvider[provider]) byProvider[provider] = emptyUsage()
     addUsage(byProvider[provider], record.usage)
+    addCost(byProvider[provider], cost ?? 0, cost !== null)
   }
   return { today, month, all, byProvider }
+}
+
+/**
+ * 按天聚合（默认近 7 天，含无数据日补零）。条目：
+ * { date: 'MM-DD', requests, tokens, costCny, costCovered }，时间升序。
+ */
+function aggregateByDay(records, now = Date.now(), days = 7) {
+  const slots = []
+  const start = localDayKey(now)
+  for (let offset = days - 1; offset >= 0; offset -= 1) {
+    const date = new Date(now - offset * 24 * 3600 * 1000)
+    const key = localDayKey(date.getTime())
+    slots.push({
+      key,
+      date: `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`,
+      requests: 0,
+      tokens: 0,
+      costCny: 0,
+      costCovered: 0,
+    })
+  }
+  const index = new Map(slots.map(slot => [slot.key, slot]))
+  const seen = new Set()
+  for (const record of records) {
+    if (!record || seen.has(record.id)) continue
+    seen.add(record.id)
+    const slot = index.get(localDayKey(record.time))
+    if (!slot) continue
+    const cost = recordCostCny(record)
+    slot.requests += 1
+    slot.tokens += finiteNonNegative(record.usage?.inputTokens) + finiteNonNegative(record.usage?.outputTokens)
+    slot.costCny += cost ?? 0
+    if (cost !== null) slot.costCovered += 1
+  }
+  return slots
+}
+
+/**
+ * 将近 24 小时用量按官方计价时段聚合，不为每个小时创建展示槽位。
+ * 条目：{ band, label, schedule, requests, tokens, costCny, costCovered }。
+ */
+function aggregateByPriceBand(records, now = Date.now(), hours = 24) {
+  const anchor = Math.floor(now / 3600000) * 3600000
+  const start = anchor - (hours - 1) * 3600000
+  const end = anchor + 3600000
+  const slots = [
+    {
+      band: 'peak',
+      label: '高峰时段',
+      schedule: '工作日 09:00–12:00、14:00–18:00',
+      requests: 0,
+      tokens: 0,
+      costCny: 0,
+      costCovered: 0,
+    },
+    {
+      band: 'off',
+      label: '空闲时段',
+      schedule: '其余时段',
+      requests: 0,
+      tokens: 0,
+      costCny: 0,
+      costCovered: 0,
+    },
+  ]
+  const index = new Map(slots.map(slot => [slot.band, slot]))
+  const seen = new Set()
+  for (const record of records) {
+    if (!record || seen.has(record.id)) continue
+    seen.add(record.id)
+    if (record.time < start || record.time >= end) continue
+    const slot = index.get(isPeakHour(record.time) ? 'peak' : 'off')
+    const cost = recordCostCny(record)
+    slot.requests += 1
+    slot.tokens += finiteNonNegative(record.usage?.inputTokens) + finiteNonNegative(record.usage?.outputTokens)
+    slot.costCny += cost ?? 0
+    if (cost !== null) slot.costCovered += 1
+  }
+  return slots
 }
 
 function decodeYamlScalar(raw) {
@@ -241,8 +385,11 @@ class UsageService {
     for (const file of this.fileCache.keys()) {
       if (!livePaths.has(file)) this.fileCache.delete(file)
     }
+    const now = this.now()
     return {
-      ...aggregateUsage(records, this.now()),
+      ...aggregateUsage(records, now),
+      byDay: aggregateByDay(records, now),
+      byPriceBand: aggregateByPriceBand(records, now),
       sessionFiles: files.length,
       unreadableFiles,
     }
@@ -283,10 +430,14 @@ module.exports = {
   DEEPSEEK_TOP_UP_URL,
   LOW_BALANCE_THRESHOLD_CNY,
   UsageService,
+  aggregateByDay,
+  aggregateByPriceBand,
   aggregateUsage,
   decompressSessionFile,
+  isPeakHour,
   markBalanceLevel,
   normalizeBalance,
   parseSessionText,
   readCredential,
+  recordCostCny,
 }
