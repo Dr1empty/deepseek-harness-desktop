@@ -974,10 +974,11 @@ function renderUsageSnapshot(section, snapshot) {
   }
 
   const footnote = section.querySelector('[data-field="footnote"]')
-  const generated = new Date(snapshot.generatedAt)
+  const generated = new Date(snapshot.usage?.collectedAt || snapshot.generatedAt)
   const unreadable = snapshot.usage?.unreadableFiles || 0
   footnote.textContent = `本地统计来自 ${snapshot.usage?.sessionFiles || 0} 个会话文件，更新时间 ${generated.toLocaleTimeString('zh-CN')}`
     + (unreadable > 0 ? `；${unreadable} 个文件暂时无法读取` : '')
+    + (snapshot.usage?.stale ? `；${snapshot.usage.warning || '当前显示上次统计结果'}` : '')
 }
 
 async function loadUsageState(section, { announce = false } = {}) {
@@ -985,12 +986,20 @@ async function loadUsageState(section, { announce = false } = {}) {
   const state = section.querySelector('[data-field="balance-state"]')
   const resultField = section.querySelector('[data-field="refresh-result"]')
   refresh.disabled = true
+  refresh.textContent = '刷新中…'
   state.textContent = '正在刷新…'
   state.dataset.tone = 'muted'
   if (announce && resultField) {
     resultField.textContent = '正在刷新…'
     resultField.dataset.tone = 'muted'
   }
+  const slowTimer = setTimeout(() => {
+    state.textContent = '仍在后台刷新…'
+    if (resultField) {
+      resultField.textContent = '数据仍在刷新；界面可继续使用'
+      resultField.dataset.tone = 'muted'
+    }
+  }, 2500)
   try {
     const result = await ipcRenderer.invoke('dsh-usage:state')
     if (!result.ok) throw new Error(result.error)
@@ -1012,7 +1021,9 @@ async function loadUsageState(section, { announce = false } = {}) {
     }
     return null
   } finally {
+    clearTimeout(slowTimer)
     refresh.disabled = false
+    refresh.textContent = '刷新'
     section.dataset.usageLoaded = 'true'
   }
 }

@@ -20,6 +20,14 @@ const {
   recordCostCny,
 } = require('../src/usage')
 
+function emptyCollectedUsage(now = 1) {
+  const empty = { requests: 0, inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, reasoningTokens: 0 }
+  return {
+    today: { ...empty }, month: { ...empty }, all: { ...empty }, byProvider: {},
+    byDay: [], byPriceBand: [], sessionFiles: 0, unreadableFiles: 0, collectedAt: now,
+  }
+}
+
 function event(id, time, usage, provider = 'deepseek-official') {
   return {
     type: 'assistant/message',
@@ -108,6 +116,42 @@ test('snapshot combines local usage with the official balance call', async () =>
   assert.equal(result.usage.byDay.length, 7)
   assert.equal(result.usage.byPriceBand.length, 2)
   fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('coalesces concurrent usage refreshes into one background collection', async () => {
+  let calls = 0
+  let finish
+  const localCollector = {
+    collect: () => {
+      calls += 1
+      return new Promise(resolve => { finish = resolve })
+    },
+  }
+  const service = new UsageService({ dshHome: 'unused', localCollector })
+  const first = service.collectUsage()
+  const second = service.collectUsage()
+  assert.equal(calls, 1)
+  finish(emptyCollectedUsage())
+  assert.deepEqual(await first, await second)
+})
+
+test('returns the last usage result when a later background collection times out', async () => {
+  let calls = 0
+  let resets = 0
+  const localCollector = {
+    collect: () => {
+      calls += 1
+      return calls === 1 ? Promise.resolve(emptyCollectedUsage(10)) : new Promise(() => {})
+    },
+    reset: () => { resets += 1 },
+  }
+  const service = new UsageService({ dshHome: 'unused', localCollector, localUsageTimeoutMs: 10 })
+  await service.collectUsage()
+  const fallback = await service.collectUsage()
+  assert.equal(fallback.stale, true)
+  assert.match(fallback.warning, /超时/u)
+  assert.equal(fallback.collectedAt, 10)
+  assert.equal(resets, 1)
 })
 
 test('estimates cost from the official pricing table with peak/off-peak split', () => {

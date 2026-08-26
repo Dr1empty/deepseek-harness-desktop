@@ -2,12 +2,15 @@
 
 const fs = require('node:fs')
 const path = require('node:path')
+const { Worker } = require('node:worker_threads')
 const zlib = require('node:zlib')
 
 const DEEPSEEK_BALANCE_URL = 'https://api.deepseek.com/user/balance'
 const DEEPSEEK_TOP_UP_URL = 'https://platform.deepseek.com/top_up'
 const DEEPSEEK_PRICING_URL = 'https://api-docs.deepseek.com/zh-cn/quick_start/pricing'
 const LOW_BALANCE_THRESHOLD_CNY = 5
+const LOCAL_USAGE_TIMEOUT_MS = 15000
+const BALANCE_TIMEOUT_MS = 8000
 
 /**
  * 官方计费单价（元 / 百万 tokens），来自 api-docs.deepseek.com 价格页：
@@ -348,16 +351,13 @@ function markBalanceLevel(balance, thresholdCny = LOW_BALANCE_THRESHOLD_CNY) {
   return { ...balance, lowBalance, thresholdCny }
 }
 
-class UsageService {
+class LocalUsageCollector {
   constructor(options) {
     this.dshHome = options.dshHome
-    this.fetchImpl = options.fetchImpl || globalThis.fetch
-    this.now = options.now || Date.now
-    this.balanceUrl = options.balanceUrl || DEEPSEEK_BALANCE_URL
     this.fileCache = new Map()
   }
 
-  async collectUsage() {
+  async collect(now = Date.now()) {
     const sessionRoot = path.join(this.dshHome, 'sessions')
     const files = listSessionFiles(sessionRoot)
     const livePaths = new Set(files)
@@ -385,23 +385,143 @@ class UsageService {
     for (const file of this.fileCache.keys()) {
       if (!livePaths.has(file)) this.fileCache.delete(file)
     }
-    const now = this.now()
     return {
       ...aggregateUsage(records, now),
       byDay: aggregateByDay(records, now),
       byPriceBand: aggregateByPriceBand(records, now),
       sessionFiles: files.length,
       unreadableFiles,
+      collectedAt: now,
     }
   }
+}
 
-  async queryBalance() {
+class UsageWorkerCollector {
+  constructor(options) {
+    this.dshHome = options.dshHome
+    this.worker = null
+    this.nextRequestId = 1
+    this.pending = new Map()
+    this.inFlight = null
+  }
+
+  ensureWorker() {
+    if (this.worker) return this.worker
+    const worker = new Worker(path.join(__dirname, 'usage-worker.js'), {
+      workerData: { dshHome: this.dshHome },
+    })
+    worker.on('message', message => {
+      if (!message || !Number.isInteger(message.id)) return
+      const request = this.pending.get(message.id)
+      if (!request) return
+      this.pending.delete(message.id)
+      if (message.ok) request.resolve(message.value)
+      else request.reject(new Error(message.error || '后台用量统计失败'))
+    })
+    worker.on('error', error => this.failWorker(worker, error))
+    worker.on('exit', code => {
+      if (code !== 0) this.failWorker(worker, new Error(`用量统计后台线程异常退出（${code}）`))
+      else this.failWorker(worker, new Error('用量统计后台线程已退出'))
+    })
+    worker.unref()
+    this.worker = worker
+    return worker
+  }
+
+  failWorker(worker, error) {
+    if (worker !== this.worker) return
+    this.worker = null
+    for (const request of this.pending.values()) request.reject(error)
+    this.pending.clear()
+  }
+
+  collect(now = Date.now()) {
+    if (this.inFlight) return this.inFlight
+    const worker = this.ensureWorker()
+    const id = this.nextRequestId++
+    worker.ref()
+    const request = new Promise((resolve, reject) => {
+      this.pending.set(id, { resolve, reject })
+      worker.postMessage({ id, now })
+    })
+    this.inFlight = request.finally(() => {
+      this.inFlight = null
+      if (worker === this.worker) worker.unref()
+    })
+    return this.inFlight
+  }
+
+  reset(message = '用量统计已取消') {
+    const worker = this.worker
+    if (!worker) return
+    this.worker = null
+    const error = new Error(message)
+    for (const request of this.pending.values()) request.reject(error)
+    this.pending.clear()
+    void worker.terminate()
+  }
+
+  dispose() {
+    this.reset('应用正在退出')
+  }
+}
+
+function withTimeout(promise, timeoutMs, message, onTimeout) {
+  let timer
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      onTimeout?.()
+      reject(new Error(message))
+    }, timeoutMs)
+  })
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer))
+}
+
+class UsageService {
+  constructor(options) {
+    this.dshHome = options.dshHome
+    this.fetchImpl = options.fetchImpl || globalThis.fetch
+    this.now = options.now || Date.now
+    this.balanceUrl = options.balanceUrl || DEEPSEEK_BALANCE_URL
+    this.localUsageTimeoutMs = options.localUsageTimeoutMs || LOCAL_USAGE_TIMEOUT_MS
+    this.balanceTimeoutMs = options.balanceTimeoutMs || BALANCE_TIMEOUT_MS
+    this.localCollector = options.localCollector || new UsageWorkerCollector({ dshHome: this.dshHome })
+    this.usageInFlight = null
+    this.balanceInFlight = null
+    this.lastUsage = null
+  }
+
+  collectUsage() {
+    if (this.usageInFlight) return this.usageInFlight
+    const operation = withTimeout(
+      this.localCollector.collect(this.now()),
+      this.localUsageTimeoutMs,
+      '本地会话统计超时',
+      () => this.localCollector.reset?.('本地会话统计超时'),
+    ).then(usage => {
+      this.lastUsage = usage
+      return usage
+    }).catch(error => {
+      if (!this.lastUsage) throw error
+      return {
+        ...this.lastUsage,
+        stale: true,
+        warning: `${error?.message || String(error)}，已显示上次结果`,
+      }
+    }).finally(() => {
+      this.usageInFlight = null
+    })
+    this.usageInFlight = operation
+    return operation
+  }
+
+  async queryBalanceOnce() {
     const apiKey = readCredential(path.join(this.dshHome, '.credentials.yaml'), 'DEEPSEEK_API_KEY')
     if (!apiKey) {
       return { status: 'unavailable', provider: 'DeepSeek', message: '尚未配置 DeepSeek API Key' }
     }
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 12000)
+    const timer = setTimeout(() => controller.abort(), this.balanceTimeoutMs)
     try {
       const response = await this.fetchImpl(this.balanceUrl, {
         method: 'GET',
@@ -418,9 +538,22 @@ class UsageService {
     }
   }
 
+  queryBalance() {
+    if (this.balanceInFlight) return this.balanceInFlight
+    const operation = this.queryBalanceOnce().finally(() => {
+      this.balanceInFlight = null
+    })
+    this.balanceInFlight = operation
+    return operation
+  }
+
   async snapshot() {
     const [usage, balance] = await Promise.all([this.collectUsage(), this.queryBalance()])
     return { generatedAt: this.now(), usage, balance }
+  }
+
+  dispose() {
+    this.localCollector.dispose?.()
   }
 }
 
@@ -429,7 +562,9 @@ module.exports = {
   DEEPSEEK_PRICING_URL,
   DEEPSEEK_TOP_UP_URL,
   LOW_BALANCE_THRESHOLD_CNY,
+  LocalUsageCollector,
   UsageService,
+  UsageWorkerCollector,
   aggregateByDay,
   aggregateByPriceBand,
   aggregateUsage,

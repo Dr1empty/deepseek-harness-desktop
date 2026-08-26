@@ -1,6 +1,6 @@
 'use strict'
 
-const { app, BrowserWindow, dialog, ipcMain, safeStorage, session, shell } = require('electron')
+const { app, BrowserWindow, dialog, ipcMain, Menu, safeStorage, session, shell, Tray } = require('electron')
 const path = require('node:path')
 const fs = require('node:fs')
 const os = require('node:os')
@@ -30,6 +30,7 @@ function log(...args) {
 }
 
 let win = null
+let tray = null
 let backend = null
 let updater = null
 let desktopUpdater = null
@@ -84,10 +85,7 @@ if (!hasSingleInstanceLock) {
 } else {
   app.on('second-instance', () => {
     log('收到重复启动请求，聚焦现有窗口')
-    if (!win || win.isDestroyed()) return
-    if (win.isMinimized()) win.restore()
-    if (!win.isVisible()) win.show()
-    win.focus()
+    showMainWindow()
   })
 }
 
@@ -154,6 +152,45 @@ if (hasSingleInstanceLock) {
   }
 }
 
+function showMainWindow() {
+  if (!win || win.isDestroyed()) return
+  if (win.isMinimized()) win.restore()
+  if (!win.isVisible()) win.show()
+  win.focus()
+}
+
+function restartFromTray() {
+  log('收到托盘重启请求')
+  quitting = true
+  app.relaunch()
+  app.quit()
+}
+
+function quitFromTray() {
+  log('收到托盘退出请求')
+  quitting = true
+  app.quit()
+}
+
+function createTray() {
+  if (tray || smokeTest) return
+  try {
+    tray = new Tray(path.join(__dirname, '..', 'assets', 'icon.ico'))
+    tray.setToolTip('DeepSeek Harness')
+    tray.setContextMenu(Menu.buildFromTemplate([
+      { label: '打开主界面', click: showMainWindow },
+      { type: 'separator' },
+      { label: '重启应用', click: restartFromTray },
+      { label: '退出应用', click: quitFromTray },
+    ]))
+    tray.on('click', showMainWindow)
+    log('托盘图标已创建')
+  } catch (error) {
+    tray = null
+    log('创建托盘图标失败:', error && error.message ? error.message : String(error))
+  }
+}
+
 function createWindow() {
   win = new BrowserWindow({
     width: 1280,
@@ -180,6 +217,12 @@ function createWindow() {
       win.show()
       log('窗口已显示')
     }
+  })
+  win.on('close', event => {
+    if (quitting || smokeTest || !tray) return
+    event.preventDefault()
+    win.hide()
+    log('窗口已隐藏到托盘')
   })
   win.on('closed', () => {
     win = null
@@ -221,6 +264,7 @@ async function boot() {
     app.exit(1)
   }, 120_000) : null
   createWindow()
+  createTray()
   const { DeepSeekPaymentService } = require('./payment')
   const { DesktopUpdater } = require('./desktop-updater')
   const { DshUpdater } = require('./updater')
@@ -445,15 +489,26 @@ ipcMain.handle('dsh-payment:status', async (_event, orderId) => {
 
 if (hasSingleInstanceLock) app.whenReady().then(boot)
 
+app.on('activate', showMainWindow)
+
 app.on('before-quit', () => {
   log('before-quit')
   quitting = true
   if (paymentService) paymentService.destroy()
+  if (usageService) usageService.dispose()
+  if (tray) {
+    tray.destroy()
+    tray = null
+  }
   if (backend) backend.stop()
 })
 
 app.on('window-all-closed', () => {
   log('window-all-closed')
+  if (!quitting && tray) {
+    log('窗口均已关闭，托盘继续运行')
+    return
+  }
   if (backend) backend.stop()
-  app.quit()
+  if (!quitting) app.quit()
 })
