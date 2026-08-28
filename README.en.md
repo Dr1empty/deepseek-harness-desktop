@@ -91,6 +91,7 @@ In one maintainer-machine verification, the repeated profile audit fell from app
 - Tracks input, output, cache-read, cache-write, and reasoning tokens.
 - Deduplicates forked-session request records to avoid double counting.
 - Shows the last seven days as a compact usage chart and aggregates the last 24 hours into peak/off-peak pricing bands instead of refreshing every hourly slot.
+- Shows the current Beijing peak/off-peak price band and the next transition countdown beside the conversation mode selector.
 - Estimates covered model costs from the official CNY pricing table and keeps the balance-first settings layout readable without scrollbars.
 - Queries the official DeepSeek balance using the current DeepSeek credential.
 - Shows a low-balance warning and clears the stale warning after a successful balance refresh.

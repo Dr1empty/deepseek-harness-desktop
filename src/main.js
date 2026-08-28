@@ -434,6 +434,16 @@ ipcMain.handle('dsh-usage:balance', async () => {
   }
 })
 
+ipcMain.handle('dsh-usage:price-band', () => {
+  try {
+    const { priceBandStatus } = require('./usage')
+    return { ok: true, value: priceBandStatus() }
+  } catch (error) {
+    log('读取峰谷计价时段失败:', error && error.message ? error.message : String(error))
+    return { ok: false, error: error && error.message ? error.message : String(error) }
+  }
+})
+
 ipcMain.handle('dsh-usage:open-official', async (_event, target) => {
   const { DEEPSEEK_PRICING_URL, DEEPSEEK_TOP_UP_URL } = require('./usage')
   const urls = { topUp: DEEPSEEK_TOP_UP_URL, pricing: DEEPSEEK_PRICING_URL }

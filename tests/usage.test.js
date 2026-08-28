@@ -14,8 +14,10 @@ const {
   decompressSessionFile,
   isPeakHour,
   markBalanceLevel,
+  nextPriceBandTransition,
   normalizeBalance,
   parseSessionText,
+  priceBandStatus,
   readCredential,
   recordCostCny,
 } = require('../src/usage')
@@ -168,6 +170,25 @@ test('estimates cost from the official pricing table with peak/off-peak split', 
   assert.equal(recordCostCny(record(off, usage)), 0.05 + 1.5 + 4.5)
   assert.equal(recordCostCny(record(peak, usage, 'deepseek-v4-pro')), 0.30 + 9.0 + 27.0)
   assert.equal(recordCostCny(record(peak, usage, 'unknown-model')), null)
+})
+
+test('reports the current Beijing price band and its next transition', () => {
+  const peak = Date.UTC(2026, 7, 25, 2, 30) // 北京周二 10:30
+  assert.deepEqual(priceBandStatus(peak), {
+    band: 'peak',
+    label: '高峰时段',
+    schedule: '工作日 09:00–12:00、14:00–18:00（北京时间）',
+    nextBand: 'off',
+    nextAt: Date.UTC(2026, 7, 25, 4, 0),
+    remainingMs: 90 * 60 * 1000,
+  })
+
+  const lunch = Date.UTC(2026, 7, 25, 4, 30) // 北京周二 12:30
+  assert.equal(priceBandStatus(lunch).band, 'off')
+  assert.equal(nextPriceBandTransition(lunch), Date.UTC(2026, 7, 25, 6, 0))
+
+  const fridayEvening = Date.UTC(2026, 7, 28, 10, 30) // 北京周五 18:30
+  assert.equal(nextPriceBandTransition(fridayEvening), Date.UTC(2026, 7, 31, 1, 0))
 })
 
 test('aggregates the last 7 days with zero-filled slots', () => {

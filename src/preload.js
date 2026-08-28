@@ -8,6 +8,7 @@ const USAGE_NAV_ID = 'dsh-desktop-usage-nav'
 const USAGE_SECTION_ID = 'dsh-desktop-usage-section'
 const RECHARGE_DIALOG_ID = 'dsh-desktop-recharge-dialog'
 const LOW_BALANCE_TOAST_ID = 'dsh-desktop-low-balance-toast'
+const PRICE_BAND_BANNER_ID = 'dsh-desktop-price-band-banner'
 const CUSTOM_NAV_IDS = new Set([UPDATE_NAV_ID, USAGE_NAV_ID])
 const CUSTOM_SECTION_IDS = new Set([UPDATE_SECTION_ID, USAGE_SECTION_ID])
 const wiredNativeButtons = new WeakSet()
@@ -19,6 +20,9 @@ let cachedStatus = {
 }
 let cachedBalance = null
 let paymentPollTimer = null
+let priceBandTimer = null
+let priceBandSyncTimer = null
+let priceBandRequestPending = false
 
 function installStyles() {
   if (document.getElementById('dsh-desktop-update-styles')) return
@@ -31,6 +35,36 @@ function installStyles() {
     #${USAGE_NAV_ID}[data-low-balance="true"]::after {
       content: ''; width: 7px; height: 7px; margin-left: auto; border-radius: 999px;
       background: #f97316; box-shadow: 0 0 0 3px rgba(249,115,22,.16);
+    }
+    #${PRICE_BAND_BANNER_ID} {
+      position: relative; display: inline-flex; flex: none; align-items: center; gap: 6px;
+      width: auto; max-width: min(460px, calc(100vw - 430px)); min-height: 22px; box-sizing: border-box;
+      margin-left: 8px; padding: 2px 8px; overflow: hidden;
+      border: 1px solid rgba(96,165,250,.38); border-radius: 999px;
+      color: #bfdbfe; background: rgba(30,58,95,.68); pointer-events: none;
+      font-family: inherit; font-size: 12px; font-weight: 400; line-height: 18px;
+      letter-spacing: normal; white-space: nowrap;
+    }
+    #${PRICE_BAND_BANNER_ID}[hidden] { display: none; }
+    #${PRICE_BAND_BANNER_ID}[data-band="peak"] {
+      border-color: rgba(245,158,11,.5); color: #fde68a; background: rgba(92,55,12,.9);
+    }
+    #${PRICE_BAND_BANNER_ID} .dsh-price-band-dot {
+      width: 7px; height: 7px; flex: none; border-radius: 999px;
+      background: #60a5fa; box-shadow: 0 0 0 3px rgba(96,165,250,.14);
+    }
+    #${PRICE_BAND_BANNER_ID}[data-band="peak"] .dsh-price-band-dot {
+      background: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,.16);
+    }
+    #${PRICE_BAND_BANNER_ID} strong { color: inherit; font-size: inherit; font-weight: 500; }
+    #${PRICE_BAND_BANNER_ID} [data-field="detail"] { opacity: .9; }
+    #${PRICE_BAND_BANNER_ID} [data-field="countdown"] {
+      margin-left: 2px; padding-left: 7px; overflow: hidden; border-left: 1px solid currentColor;
+      opacity: .82; text-overflow: ellipsis;
+    }
+    @media (max-width: 760px) {
+      #${PRICE_BAND_BANNER_ID} { max-width: 250px; }
+      #${PRICE_BAND_BANNER_ID} [data-field="detail"] { display: none; }
     }
     #${UPDATE_SECTION_ID} {
       flex: 1; min-height: 0; overflow-y: auto; box-sizing: border-box;
@@ -466,6 +500,134 @@ function installStyles() {
     #${RECHARGE_DIALOG_ID} .dsh-qr-status[data-tone="error"] { color: #f87171; }
   `
   document.head.appendChild(style)
+}
+
+function formatPriceBandDuration(milliseconds) {
+  const totalMinutes = Math.max(1, Math.ceil(Math.max(0, Number(milliseconds) || 0) / 60000))
+  const days = Math.floor(totalMinutes / (24 * 60))
+  const hours = Math.floor((totalMinutes % (24 * 60)) / 60)
+  const minutes = totalMinutes % 60
+  if (days > 0) return `${days} 天 ${hours} 小时`
+  if (hours > 0) return `${hours} 小时 ${minutes} 分`
+  return `${minutes} 分`
+}
+
+function formatBeijingTransition(time, now = Date.now()) {
+  const shifted = new Date(time + 8 * 3600 * 1000)
+  const current = new Date(now + 8 * 3600 * 1000)
+  const sameDay = shifted.getUTCFullYear() === current.getUTCFullYear()
+    && shifted.getUTCMonth() === current.getUTCMonth()
+    && shifted.getUTCDate() === current.getUTCDate()
+  return new Intl.DateTimeFormat('zh-CN', {
+    timeZone: 'Asia/Shanghai',
+    ...(sameDay ? {} : { weekday: 'short' }),
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(new Date(time))
+}
+
+function ensurePriceBandBanner() {
+  let banner = document.getElementById(PRICE_BAND_BANNER_ID)
+  if (banner) return banner
+  banner = document.createElement('div')
+  banner.id = PRICE_BAND_BANNER_ID
+  banner.setAttribute('role', 'status')
+  banner.setAttribute('aria-live', 'polite')
+  banner.innerHTML = `
+    <span class="dsh-price-band-dot" aria-hidden="true"></span>
+    <strong data-field="label"></strong>
+    <span data-field="detail"></span>
+    <span data-field="countdown"></span>
+  `
+  document.body.appendChild(banner)
+  return banner
+}
+
+function visibleElement(element) {
+  if (!element || element.hidden || element.closest('[hidden], [aria-hidden="true"], [inert]')) return false
+  const style = window.getComputedStyle(element)
+  if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse' || style.opacity === '0') {
+    return false
+  }
+  const rect = element.getBoundingClientRect()
+  return rect.width > 0 && rect.height > 0
+    && rect.right > 0 && rect.bottom > 0
+    && rect.left < window.innerWidth && rect.top < window.innerHeight
+}
+
+function conversationSurfaceVisible() {
+  if ([...document.querySelectorAll('[role="dialog"]')].some(visibleElement)) return false
+  const editors = document.querySelectorAll('textarea, [contenteditable="true"], [role="textbox"]')
+  return [...editors].some(visibleElement)
+}
+
+function findConversationModeAnchor() {
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
+  let node = walker.nextNode()
+  while (node) {
+    if (node.nodeValue?.trim() === '标准模式') {
+      const label = node.parentElement
+      const anchor = label?.closest('button, [role="button"], [role="group"]') || label
+      if (anchor && !anchor.contains(document.getElementById(PRICE_BAND_BANNER_ID)) && visibleElement(anchor)) return anchor
+    }
+    node = walker.nextNode()
+  }
+  return null
+}
+
+function mountPriceBandBanner(banner) {
+  const anchor = findConversationModeAnchor()
+  if (!anchor?.parentElement) return false
+  if (banner.parentElement !== anchor.parentElement || banner.previousElementSibling !== anchor) {
+    anchor.insertAdjacentElement('afterend', banner)
+  }
+  return true
+}
+
+async function syncPriceBandBanner() {
+  const banner = ensurePriceBandBanner()
+  banner.hidden = !conversationSurfaceVisible() || !mountPriceBandBanner(banner)
+  if (banner.hidden || priceBandRequestPending) return
+  priceBandRequestPending = true
+  try {
+    const result = await ipcRenderer.invoke('dsh-usage:price-band')
+    if (!result.ok) throw new Error(result.error || '无法读取计价时段')
+    if (!conversationSurfaceVisible() || !mountPriceBandBanner(banner)) {
+      banner.hidden = true
+      return
+    }
+    const status = result.value
+    const now = Date.now()
+    const label = banner.querySelector('[data-field="label"]')
+    const detail = banner.querySelector('[data-field="detail"]')
+    const countdown = banner.querySelector('[data-field="countdown"]')
+    banner.dataset.band = status.band
+    label.textContent = status.label
+    detail.textContent = status.band === 'peak'
+      ? '高峰价'
+      : '约 5 折'
+    const destination = status.nextBand === 'peak' ? '高峰' : '空闲'
+    countdown.textContent = status.nextAt === null
+      ? status.schedule
+      : `距${destination} ${formatPriceBandDuration(status.remainingMs)}`
+    const nextText = status.nextAt === null ? '' : `；下次切换 ${formatBeijingTransition(status.nextAt, now)}`
+    banner.title = `${status.schedule}${nextText}`
+    banner.setAttribute('aria-label', `${status.label}。${detail.textContent}。${countdown.textContent}`)
+    banner.hidden = false
+  } catch (_) {
+    banner.hidden = true
+  } finally {
+    priceBandRequestPending = false
+  }
+}
+
+function queuePriceBandBannerSync() {
+  if (priceBandSyncTimer !== null) return
+  priceBandSyncTimer = setTimeout(() => {
+    priceBandSyncTimer = null
+    void syncPriceBandBanner()
+  }, 60)
 }
 
 function updateSectionDisplay(section) {
@@ -1470,8 +1632,11 @@ function start() {
   // 挂载设置、余额查询和提示，避免启动页提前出现余额警告并制造“反复刷新”错觉。
   if (!isHarnessPage()) return
   syncSettingsUpdateSections()
+  void syncPriceBandBanner()
+  if (priceBandTimer === null) priceBandTimer = setInterval(() => void syncPriceBandBanner(), 30000)
   new MutationObserver((mutations) => {
     if (mutationTouchesSettingsDialog(mutations)) queueSync()
+    queuePriceBandBannerSync()
   }).observe(document.documentElement, {
     childList: true,
     subtree: true,

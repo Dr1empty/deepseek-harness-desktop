@@ -48,3 +48,8 @@ test('only Desktop build commands and product identity remain', () => {
   assert.match(appUpdate, /provider: github/)
   assert.match(appUpdate, /updaterCacheDirName: dsh-desktop-updater/)
 })
+
+test('sandboxed preload does not import local CommonJS modules', () => {
+  const preload = fs.readFileSync(path.join(root, 'src', 'preload.js'), 'utf8')
+  assert.doesNotMatch(preload, /require\(['"]\.{1,2}[\\/]/)
+})

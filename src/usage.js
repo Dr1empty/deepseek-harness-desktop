@@ -11,6 +11,8 @@ const DEEPSEEK_PRICING_URL = 'https://api-docs.deepseek.com/zh-cn/quick_start/pr
 const LOW_BALANCE_THRESHOLD_CNY = 5
 const LOCAL_USAGE_TIMEOUT_MS = 15000
 const BALANCE_TIMEOUT_MS = 8000
+const BEIJING_OFFSET_MS = 8 * 3600 * 1000
+const DAY_MS = 24 * 3600 * 1000
 
 /**
  * 官方计费单价（元 / 百万 tokens），来自 api-docs.deepseek.com 价格页：
@@ -37,7 +39,7 @@ const PRICING_CNY_PER_1M = {
 
 /** 该请求的北京时间时钟（周几 0=周日 / 小时），用于峰谷判定。 */
 function beijingClock(time) {
-  const date = new Date(time + 8 * 3600 * 1000)
+  const date = new Date(time + BEIJING_OFFSET_MS)
   return { day: date.getUTCDay(), hour: date.getUTCHours() }
 }
 
@@ -46,6 +48,44 @@ function isPeakHour(time) {
   const clock = beijingClock(time)
   return clock.day >= 1 && clock.day <= 5
     && ((clock.hour >= 9 && clock.hour < 12) || (clock.hour >= 14 && clock.hour < 18))
+}
+
+/** 下一次官方峰谷计价切换的 UTC 时间戳。 */
+function nextPriceBandTransition(time) {
+  const now = Number.isFinite(Number(time)) ? Number(time) : Date.now()
+  const beijing = new Date(now + BEIJING_OFFSET_MS)
+  const baseDay = Date.UTC(beijing.getUTCFullYear(), beijing.getUTCMonth(), beijing.getUTCDate())
+  for (let offset = 0; offset <= 8; offset += 1) {
+    const localDay = new Date(baseDay + offset * DAY_MS)
+    const weekday = localDay.getUTCDay()
+    if (weekday < 1 || weekday > 5) continue
+    for (const hour of [9, 12, 14, 18]) {
+      const candidate = Date.UTC(
+        localDay.getUTCFullYear(),
+        localDay.getUTCMonth(),
+        localDay.getUTCDate(),
+        hour,
+      ) - BEIJING_OFFSET_MS
+      if (candidate <= now) continue
+      if (isPeakHour(candidate - 1) !== isPeakHour(candidate)) return candidate
+    }
+  }
+  return null
+}
+
+/** 对话页横幅使用的当前计价时段快照。 */
+function priceBandStatus(time = Date.now()) {
+  const now = Number.isFinite(Number(time)) ? Number(time) : Date.now()
+  const peak = isPeakHour(now)
+  const nextAt = nextPriceBandTransition(now)
+  return {
+    band: peak ? 'peak' : 'off',
+    label: peak ? '高峰时段' : '空闲时段',
+    schedule: '工作日 09:00–12:00、14:00–18:00（北京时间）',
+    nextBand: peak ? 'off' : 'peak',
+    nextAt,
+    remainingMs: nextAt === null ? null : Math.max(0, nextAt - now),
+  }
 }
 
 /**
@@ -572,7 +612,9 @@ module.exports = {
   isPeakHour,
   markBalanceLevel,
   normalizeBalance,
+  nextPriceBandTransition,
   parseSessionText,
+  priceBandStatus,
   readCredential,
   recordCostCny,
 }
