@@ -6,7 +6,7 @@
 [![Release](https://img.shields.io/github/v/release/Dr1empty/deepseek-harness-desktop?include_prereleases&label=Desktop)](https://github.com/Dr1empty/deepseek-harness-desktop/releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%20x64-0078d4)](#system-requirements)
 
-DeepSeek Harness Desktop is an unofficial Windows distribution integrated into a fork of [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness). It preserves the upstream Harness Web UI, agents, sessions, tools, and plugin architecture while adding one-click installation, local-service lifecycle management, Desktop and kernel updates, usage and balance reporting, native QR-code top-up, a single-instance desktop window, startup optimization, and reproducible releases.
+DeepSeek Harness Desktop is an unofficial Windows distribution for [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness). It preserves the upstream Harness Web UI, agents, sessions, tools, and plugin architecture while adding one-click installation, local-service lifecycle management, Desktop and kernel updates, usage and balance reporting with background collection and timeout recovery, native QR-code top-up, a tray-backed single-instance desktop window, startup optimization, and reproducible releases.
 
 This project is not an official DeepSeek product and is not maintained or endorsed by DeepSeek.
 
@@ -14,12 +14,12 @@ This project is not an official DeepSeek product and is not maintained or endors
 
 | Platform | Download | Notes |
 | --- | --- | --- |
-| Windows 10/11 x64 | [DeepSeek Harness Desktop 1.1.6](https://github.com/Dr1empty/deepseek-harness-desktop/releases) | NSIS Setup with Node.js and Harness included; no development environment required |
+| Windows 10/11 x64 | [DeepSeek Harness Desktop 1.1.8](https://github.com/Dr1empty/deepseek-harness-desktop/releases/tag/v1.1.8-desktop) | NSIS Setup with Node.js and Harness included; no development environment required |
 
-The installer is not commercially code-signed, so Windows may display an “Unknown publisher” warning. Download `SHA256SUMS.txt` from the same Release or verify the 1.1.6 Setup hash:
+The installer is not commercially code-signed, so Windows may display an “Unknown publisher” warning. Download `SHA256SUMS.txt` from the same Release or verify the 1.1.8 Setup hash:
 
 ```text
-44A4FFAC1CDE32B88797784F6720233C1B108A0A0D2F0D8B8FD423C90D211064
+4F68BA725872A0DA79840F694557E6E676AA99066BC0F30AFF61A759032516E4
 ```
 
 ## Why this Desktop exists
@@ -30,7 +30,8 @@ This project focuses on running upstream Harness reliably as a Windows applicati
 
 - Install from one Setup without configuring Node.js, npm, or pnpm.
 - Start Harness from a shortcut and open the upstream Web UI as soon as the local service is ready.
-- Reclaim the backend process when the app exits and show recent logs when startup fails.
+- Close the main window to keep Harness running in the system tray, with controls to reopen, restart, or fully exit.
+- Reclaim the backend process when the app fully exits and show recent logs when startup fails.
 - Add Desktop-specific controls to the existing Harness settings instead of introducing a separate landing page.
 - Keep kernel updates, usage, balance, and top-up inside one desktop window.
 
@@ -39,11 +40,11 @@ This project focuses on running upstream Harness reliably as a Windows applicati
 | Area | Upstream Harness | Additional Desktop implementation |
 | --- | --- | --- |
 | Windows distribution | Primarily a CLI/npm package and Web application | NSIS Setup, desktop and Start Menu shortcuts, and bundled portable Node.js 24 |
-| Local service | Started and stopped by the user through the CLI | Electron-managed child process, readiness detection, port fallback, shutdown cleanup, and failure reporting |
-| Window lifecycle | Runs in a browser tab | Single-instance desktop window; repeated shortcut launches focus the existing window |
+| Local service | Started and stopped by the user through the CLI | Electron-managed child process, readiness detection, port fallback, full-exit cleanup, and failure reporting |
+| Window lifecycle | Runs in a browser tab | Single-instance desktop window; closing hides it to the system tray, whose controls reopen, restart, or quit the app; repeated launches focus the existing window |
 | Startup experience | Depends on CLI and browser startup | Local loading surface, parallel backend/Chromium initialization, and stage timings |
 | Software updates | Package-manager workflow | Separate in-app updates for the Desktop shell and Harness npm kernel, preserving the working version on failure |
-| Usage and balance | Not a Desktop function in the core Web UI | Local session-token aggregation, official DeepSeek balance query, and low-balance warning |
+| Usage and balance | Not a Desktop function in the core Web UI | Background-worker session-token aggregation with refresh timeouts and last-result fallback, official DeepSeek balance query, and low-balance warning |
 | Top-up | Opens the platform website | Native amount/payment-method UI with official Alipay or WeChat payment QR generation |
 | Release verification | Upstream tests target Harness itself | Desktop unit tests, real NSIS build, packaged smoke test, SHA-256 checksums, and release manifest |
 
@@ -59,11 +60,13 @@ This project focuses on running upstream Harness reliably as a Windows applicati
 - Falls back to an operating-system-assigned local port if the preferred port is occupied.
 - Loads the service on `127.0.0.1`; it is not intentionally exposed as a LAN service.
 
-### Single instance and reliable shutdown
+### Single instance, system tray, and reliable shutdown
 
 - Only one instance of the same Desktop distribution may run.
+- Closing the main window hides it to the system tray while the Desktop and Harness service keep running.
+- Clicking the tray icon or choosing “Open main window” restores the app; the tray menu can also restart or fully exit it.
 - Repeated shortcut launches restore, show, and focus the existing window.
-- Normal app exit synchronously cleans up the Harness child-process tree.
+- A full app exit synchronously cleans up the Harness child-process tree.
 - Startup failures retain the tail of stdout/stderr and report a specific backend error.
 
 ### Startup performance
@@ -90,6 +93,9 @@ In one maintainer-machine verification, the repeated profile audit fell from app
 - Aggregates requests and tokens for today, the current month, and all retained history from local session events.
 - Tracks input, output, cache-read, cache-write, and reasoning tokens.
 - Deduplicates forked-session request records to avoid double counting.
+- Runs local session aggregation in a background worker and coalesces concurrent refresh requests so large profiles do not block Settings.
+- Applies timeout protection to local usage and balance refreshes; local usage falls back to the last successful result and marks it stale when a later collection times out.
+- Shows a background-refresh status when collection is slow while the rest of the interface remains usable.
 - Shows the last seven days as a compact usage chart and aggregates the last 24 hours into peak/off-peak pricing bands instead of refreshing every hourly slot.
 - Shows the current Beijing peak/off-peak price band and the next transition countdown beside the conversation mode selector.
 - Estimates covered model costs from the official CNY pricing table and keeps the balance-first settings layout readable without scrollbars.
@@ -117,7 +123,7 @@ Orders, balances, and pricing are determined by the DeepSeek Open Platform respo
 
 ## Plugin boundary
 
-Desktop 1.1.6 does not preinstall third-party add-on plugins. The following components are not included in the Git repository, Setup, or isolated Desktop profile:
+Desktop 1.1.8 does not preinstall third-party add-on plugins. The following components are not included in the Git repository, Setup, or isolated Desktop profile:
 
 - `dsh-client-liang-intensity-skin`
 - `@dsh-external/dsh-super-injector` / routing-suite
@@ -172,17 +178,17 @@ macOS, Linux, and Windows ARM64 installers are not currently provided.
 
 ## Development
 
-Desktop source lives under `apps/desktop` in the fork:
+Desktop source lives at the repository root:
 
 ```powershell
 git clone https://github.com/Dr1empty/deepseek-harness-desktop.git
-cd deepseek-harness-desktop\apps\desktop
+cd deepseek-harness-desktop
 npm ci
 npm test
 npm start
 ```
 
-When developed inside the fork, Desktop automatically discovers the Harness source at the repository root. A standalone checkout may set `DSH_SOURCE_ROOT` to a Harness source directory.
+This is a standalone Desktop repository. Development mode expects an upstream Harness source checkout; place `deepseek-harness` beside this repository or set `DSH_SOURCE_ROOT` to its source directory.
 
 ### Build the Windows Setup
 
@@ -213,7 +219,8 @@ src/backend.js                  Harness process, port, readiness, and link maint
 src/preload.js                  Settings UI for updates, usage, and top-up
 src/desktop-updater.js          GitHub release checks, download progress, and Desktop installation
 src/updater.js                  Verified installation and switching of npm kernels
-src/usage.js                    Local usage aggregation and official balance query
+src/usage.js                    Usage/balance orchestration, timeouts, and last-result fallback
+src/usage-worker.js             Background session-file aggregation
 src/payment.js                  Official orders, controlled login, and QR payments
 tests/                          Desktop unit tests
 build/prepare-desktop.cjs       Reproducible runtime preparation
@@ -223,9 +230,9 @@ electron-builder-desktop*.yml   Windows directory and NSIS build configuration
 
 ## Validation status
 
-Desktop 1.1.6 has passed:
+Desktop 1.1.8 validation covers:
 
-- 27 Node unit tests;
+- the Desktop Node unit test suite;
 - a real Windows x64 NSIS Setup build;
 - packaged backend-start and page-load smoke testing;
 - a local startup regression with four external plugins in the maintainer profile;
@@ -242,8 +249,8 @@ Desktop 1.1.6 has passed:
 ## Relationship to upstream
 
 - Upstream: [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness)
-- This fork: [Dr1empty/deepseek-harness-desktop](https://github.com/Dr1empty/deepseek-harness-desktop)
+- This repository: [Dr1empty/deepseek-harness-desktop](https://github.com/Dr1empty/deepseek-harness-desktop)
 - Desktop source: [repository root](https://github.com/Dr1empty/deepseek-harness-desktop)
-- Desktop Release: [v1.1.6-desktop](https://github.com/Dr1empty/deepseek-harness-desktop/releases/tag/v1.1.6-desktop)
+- Desktop Release: [v1.1.8-desktop](https://github.com/Dr1empty/deepseek-harness-desktop/releases/tag/v1.1.8-desktop)
 
 Upstream Harness code and trademarks remain subject to upstream licenses and policies. Desktop-owned code is released under the [MIT License](LICENSE). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for third-party notices and [CHANGELOG.md](CHANGELOG.md) for version history.
